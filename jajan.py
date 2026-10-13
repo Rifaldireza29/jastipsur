@@ -56,8 +56,8 @@ MENU_JAJANAN = [
     {"id": 12, "nama": "Dimsum ayam", "lokasi": "", "harga": 10000, "deskripsi": "dimsum ayam aja dijamin enak."},
     {"id": 13, "nama": "Dimsum campur", "lokasi": "", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
     {"id": 14, "nama": "Dimsum campur", "lokasi": "", "harga": 10000, "deskripsi": "Dimsum campur aduk makin enak."},
-    {"id": 15, "nama": "Cilor", "lokasi": "Mizan", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
-    {"id": 16, "nama": "Cilor", "lokasi": "Mizan", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
+    {"id": 15, "nama": "Cilor", "lokasi": "", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
+    {"id": 16, "nama": "Cilor", "lokasi": "", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
     {"id": 17, "nama": "Usus crispy", "lokasi": "", "harga": 5000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
     {"id": 18, "nama": "Usus crispy", "lokasi": "", "harga": 10000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
     {"id": 19, "nama": "Kwetiaw", "lokasi": "", "harga": 10000, "deskripsi": "kwetiau harga pasar rasa restoran."},
@@ -123,7 +123,7 @@ with tab_form:
     col_nama, col_tgl = st.columns(2)
     
     with col_nama:
-        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Budi / Rifaldy")
+        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Surya / Rifaldy")
     with col_tgl:
         tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today())
 
@@ -154,7 +154,7 @@ with tab_form:
         with col_qty:
             jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
         with col_level:
-            level_pedas = st.selectbox("Level Pedas (Opsional):", ["Tidak Pedas (jiga orok)", "Pedes Dikit (manusia normal)", "Pedas Sedang (set manusia set jurig)", "Pedas mampus (Jurigg siah)"])
+            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedas Dikit", "Pedas Sedang", "Pedasssss"])
 
         catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
