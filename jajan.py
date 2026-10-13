@@ -121,7 +121,7 @@ else:
         if not nama_pemesan:
             st.error("Mohon isi Nama Pemesan di bagian atas dulu ya!")
         else:
-            nomor_whatsapp_kasir = "6281234567890" # Ganti nomor WhatsApp tujuan (format 62...)
+            nomor_whatsapp_kasir = "6285793241231" # Ganti nomor WhatsApp tujuan (format 62...)
             
             info_tempat = f"*Nomor Meja:* {nomor_meja}" if "Dine-In" in tipe_pesanan else f"*Jenis:* {tipe_pesanan}"
             
