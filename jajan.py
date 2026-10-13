@@ -10,8 +10,8 @@ st.set_page_config(
 
 # 10 Daftar Menu Jajanan Lengkap
 MENU_JAJANAN = [
-    {"id": 1, "nama": "Seblak Jebred Spesial", "kategori": "Pedas", "harga": 18000, "deskripsi": "Seblak komplit dengan kerupuk, sosis, bakso, ceker, dan tulang."},
-    {"id": 2, "nama": "Cireng Bumbu Rujak", "kategori": "Gurih", "harga": 12000, "deskripsi": "Cireng crispy di luar, kenyal di dalam, disajikan dengan sambal rujak pedas manis."},
+    {"id": 1, "nama": "Jambu Krisjon", "kategori": "Pedas", "harga": 5000, "deskripsi": "Seblak komplit dengan kerupuk, sosis, bakso, ceker, dan tulang."},
+    {"id": 2, "nama": "Jambu Krisjon", "kategori": "Gurih", "harga": 10000, "deskripsi": "Cireng crispy di luar, kenyal di dalam, disajikan dengan sambal rujak pedas manis."},
     {"id": 3, "nama": "Baso Aci Garut", "kategori": "Pedas", "harga": 15000, "deskripsi": "Baso aci hangat dengan cuanki lidah, siomay mini, dan jeruk limau."},
     {"id": 4, "nama": "Pisang Goreng Keju Coklat", "kategori": "Manis", "harga": 14000, "deskripsi": "Pisang manis berlumur susu kental manis, keju parut, dan meses melimpah."},
     {"id": 5, "nama": "Dimsum Mentai (4 pcs)", "kategori": "Gurih", "harga": 20000, "deskripsi": "Dimsum ayam udang lembut dengan saus mentai *torch* yang gurih creamy."},
@@ -28,7 +28,7 @@ if "all_orders" not in st.session_state:
 
 # Header Aplikasi
 st.title("🍜 Jajan Kuy - Form & Rekapitulasi")
-st.subheader("Catat pesanan jajananmu, pilih tanggal, dan lihat rekap gabungannya secara otomatis!")
+st.subheader("sok gewat atuh nge list best bro, pilih tanggal tong poho!")
 st.markdown("---")
 
 # Tab Menu Aplikasi supaya rapi
@@ -38,7 +38,7 @@ with tab_form:
     st.markdown("### 1. 📋 Identitas & Tanggal Jajan")
     col_nama, col_tgl = st.columns(2)
     with col_nama:
-        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Surya / Budi")
+        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Surya / Rifaldy")
     with col_tgl:
         tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today())
 
@@ -59,7 +59,7 @@ with tab_form:
     with col_qty:
         jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
     with col_level:
-        level_pedas = st.selectbox("Level Pedas (Opsional):", ["Tidak Pedas (Level 0)", "Sedang (Level 1)", "Pedas (Level 2)", "Super Pedas (Level 3)", "Wajib Pedas Mampus (Level 5)"])
+        level_pedas = st.selectbox("Level Pedas (Opsional):", ["Tidak Pedas (jiga orok)", "Pedes Dikit (manusia normal)", "Pedas Sedang (set manusia set jurig)", "Pedas mampus (Jurigg siah)"])
 
     catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
@@ -143,7 +143,7 @@ with tab_rekap:
                   &nbsp;&nbsp;&nbsp;&nbsp;└ *Level:* {ord_data['level']} | *Catatan:* {ord_data['catatan']} | *Subtotal:* Rp {sub_harga:,}
                 """)
             
-            st.markdown(f"**💰 Total Kas Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
+            st.markdown(f"**💰 Total harga Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
             
             # REKAP AKHIR SESUAI JENIS JAJANAN PADA TANGGAL TERSEBUT
             st.markdown("#### 🛒 Rekap Total Porsi Berdasarkan Jenis Jajanan:")
