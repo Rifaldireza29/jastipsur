@@ -45,7 +45,7 @@ MENU_JAJANAN = [
     {"id": 10, "nama": "Roti bakar kacang-strawberry", "kategori": "makanan", "harga": 8500, "deskripsi": "roti bakar yomart tea nu endul."},
     {"id": 11, "nama": "Dimsum ayam", "kategori": "makanan", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
     {"id": 12, "nama": "Dimsum ayam", "kategori": "makanan", "harga": 10000, "deskripsi": "dimsum ayam aja dijamin enak."},
-    {"id": 13, "nama": "Dimsum campur", "kategori": "makanan", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
+    {"id": 13, "nama": "Dimsum campur", "kategori": "makanan", "harga": 5000, "deskripsi": "dimsum campur aduk makin enak."},
     {"id": 14, "nama": "Dimsum campur", "kategori": "makanan", "harga": 10000, "deskripsi": "Dimsum campur aduk makin enak."},
     {"id": 15, "nama": "Cilor", "kategori": "makanan", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
     {"id": 16, "nama": "Cilor", "kategori": "makanan", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
