@@ -10,16 +10,33 @@ st.set_page_config(
 
 # 10 Daftar Menu Jajanan Lengkap
 MENU_JAJANAN = [
-    {"id": 1, "nama": "Jambu Krisjon", "kategori": "Pedas", "harga": 5000, "deskripsi": "Seblak komplit dengan kerupuk, sosis, bakso, ceker, dan tulang."},
-    {"id": 2, "nama": "Jambu Krisjon", "kategori": "Gurih", "harga": 10000, "deskripsi": "Cireng crispy di luar, kenyal di dalam, disajikan dengan sambal rujak pedas manis."},
-    {"id": 3, "nama": "Baso Aci Garut", "kategori": "Pedas", "harga": 15000, "deskripsi": "Baso aci hangat dengan cuanki lidah, siomay mini, dan jeruk limau."},
-    {"id": 4, "nama": "Pisang Goreng Keju Coklat", "kategori": "Manis", "harga": 14000, "deskripsi": "Pisang manis berlumur susu kental manis, keju parut, dan meses melimpah."},
-    {"id": 5, "nama": "Dimsum Mentai (4 pcs)", "kategori": "Gurih", "harga": 20000, "deskripsi": "Dimsum ayam udang lembut dengan saus mentai *torch* yang gurih creamy."},
-    {"id": 6, "nama": "Tahu Crispy Petis", "kategori": "Gurih", "harga": 10000, "deskripsi": "Tahu goreng kopong super renyah dicocol sambal petis khas madura."},
-    {"id": 7, "nama": "Martabak Telur Mini", "kategori": "Gurih", "harga": 12000, "deskripsi": "Martabak mini isi daging cincang dan daun bawang dengan kuah cuka asam manis."},
-    {"id": 8, "nama": "Es Teh Manis Melati", "kategori": "Minuman", "harga": 5000, "deskripsi": "Teh melati segar dengan es batu melimpah."},
-    {"id": 9, "nama": "Es Jeruk Peras Asli", "kategori": "Minuman", "harga": 8000, "deskripsi": "Jeruk peras murni segar kaya vitamin C penawar pedas."},
-    {"id": 10, "nama": "Es Susu Kopi Gula Aren", "kategori": "Minuman", "harga": 18000, "deskripsi": "Kopi susu espresso dipadu manisnya gula aren asli."}
+    {"id": 1, "nama": "Jambu Krisjon", "kategori": "makanan", "harga": 5000, "deskripsi": "Jambu kristal panghegar yang manis ituh."},
+    {"id": 2, "nama": "Jambu Krisjon", "kategori": "makanan", "harga": 10000, "deskripsi": "Jambu kristal panghegar yang manis ituh"},
+    {"id": 3, "nama": "Roti bakar coklat", "kategori": "makanan", "harga": 7000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 4, "nama": "Roti bakar strawberry", "kategori": "makanan", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 5, "nama": "Roti bakar keju", "kategori": "makanan", "harga": 7000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 6, "nama": "Roti bakar blueberry", "kategori": "makanan", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 7, "nama": "Roti bakar kacang", "kategori": "makanan", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 8, "nama": "Roti bakar coklat-keju", "kategori": "makanan", "harga": 10000, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 9, "nama": "Roti bakar coklat-kacang", "kategori": "makanan", "harga": 9500, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 10, "nama": "Roti bakar kacang-strawberry", "kategori": "makanan", "harga": 8500, "deskripsi": "roti bakar yomart tea nu endul."},
+    {"id": 11, "nama": "Dimsum ayam", "kategori": "makanan", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
+    {"id": 12, "nama": "Dimsum ayam", "kategori": "makanan", "harga": 10000, "deskripsi": "dimsum ayam aja dijamin enak."},
+    {"id": 13, "nama": "Dimsum campur", "kategori": "makanan", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
+    {"id": 14, "nama": "Dimsum campur", "kategori": "makanan", "harga": 10000, "deskripsi": "Dimsum campur aduk makin enak."},
+    {"id": 15, "nama": "Cilor", "kategori": "makanan", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
+    {"id": 16, "nama": "Cilor", "kategori": "makanan", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
+    {"id": 17, "nama": "Usus crispy", "kategori": "makanan", "harga": 5000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
+    {"id": 17, "nama": "Usus crispy", "kategori": "makanan", "harga": 10000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
+    {"id": 18, "nama": "Kwetiaw", "kategori": "makanan", "harga": 10000, "deskripsi": "kwetiau harga pasar rasa restoran."},
+    {"id": 19, "nama": "cireng ayam ori", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 20, "nama": "cireng ayam pedas", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 21, "nama": "cireng ayam keju", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 22, "nama": "Basreng", "kategori": "makanan", "harga": 5000, "deskripsi": "baso goyeng."}
+    {"id": 23, "nama": "Basreng", "kategori": "makanan", "harga": 10000, "deskripsi": "baso goyeng."}
+    
+
+    
 ]
 
 # Inisialisasi Database Sederhana di Session State (Menyimpan semua riwayat pesanan)
@@ -28,7 +45,7 @@ if "all_orders" not in st.session_state:
 
 # Header Aplikasi
 st.title("🍜 Jajan Kuy - Form & Rekapitulasi")
-st.subheader("sok gewat atuh nge list best bro, pilih tanggal tong poho!")
+st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
 st.markdown("---")
 
 # Tab Menu Aplikasi supaya rapi
