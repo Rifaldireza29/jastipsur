@@ -32,8 +32,8 @@ MENU_JAJANAN = [
     {"id": 19, "nama": "cireng ayam ori", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
     {"id": 20, "nama": "cireng ayam pedas", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
     {"id": 21, "nama": "cireng ayam keju", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 22, "nama": "Basreng", "kategori": "makanan", "harga": 5000, "deskripsi": "baso goyeng."}
-    {"id": 23, "nama": "Basreng", "kategori": "makanan", "harga": 10000, "deskripsi": "baso goyeng."}
+    {"id": 22, "nama": "Basreng", "kategori": "makanan", "harga": 5000, "deskripsi": "baso goyeng."},
+    {"id": 23, "nama": "Basreng", "kategori": "makanan", "harga": 10000, "deskripsi": "baso goyeng."},
     
 
     
