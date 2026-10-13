@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+import sqlite3
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -8,7 +9,29 @@ st.set_page_config(
     layout="wide"
 )
 
-# 10 Daftar Menu Jajanan Lengkap
+# --- SETUP DATABASE SQLITE ---
+def init_db():
+    conn = sqlite3.connect("database_jajan.db", check_same_thread=False)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS orders (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tanggal TEXT,
+            nama_pemesan TEXT,
+            nama_menu TEXT,
+            harga INTEGER,
+            qty INTEGER,
+            level TEXT,
+            catatan TEXT
+        )
+    """)
+    conn.commit()
+    return conn
+
+conn = init_db()
+cursor = conn.cursor()
+
+# 23 Daftar Menu Jajanan Lengkap
 MENU_JAJANAN = [
     {"id": 1, "nama": "Jambu Krisjon", "kategori": "makanan", "harga": 5000, "deskripsi": "Jambu kristal panghegar yang manis ituh."},
     {"id": 2, "nama": "Jambu Krisjon", "kategori": "makanan", "harga": 10000, "deskripsi": "Jambu kristal panghegar yang manis ituh"},
@@ -27,28 +50,21 @@ MENU_JAJANAN = [
     {"id": 15, "nama": "Cilor", "kategori": "makanan", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
     {"id": 16, "nama": "Cilor", "kategori": "makanan", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
     {"id": 17, "nama": "Usus crispy", "kategori": "makanan", "harga": 5000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
-    {"id": 17, "nama": "Usus crispy", "kategori": "makanan", "harga": 10000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
-    {"id": 18, "nama": "Kwetiaw", "kategori": "makanan", "harga": 10000, "deskripsi": "kwetiau harga pasar rasa restoran."},
-    {"id": 19, "nama": "cireng ayam ori", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 20, "nama": "cireng ayam pedas", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 21, "nama": "cireng ayam keju", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 22, "nama": "Basreng", "kategori": "makanan", "harga": 5000, "deskripsi": "baso goyeng."},
-    {"id": 23, "nama": "Basreng", "kategori": "makanan", "harga": 10000, "deskripsi": "baso goyeng."},
-    
-
-    
+    {"id": 18, "nama": "Usus crispy", "kategori": "makanan", "harga": 10000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
+    {"id": 19, "nama": "Kwetiaw", "kategori": "makanan", "harga": 10000, "deskripsi": "kwetiau harga pasar rasa restoran."},
+    {"id": 20, "nama": "cireng ayam ori", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 21, "nama": "cireng ayam pedas", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 22, "nama": "cireng ayam keju", "kategori": "makanan", "harga": 2500, "deskripsi": "hireng hanas."},
+    {"id": 23, "nama": "Basreng", "kategori": "makanan", "harga": 5000, "deskripsi": "baso goyeng."},
+    {"id": 24, "nama": "Basreng", "kategori": "makanan", "harga": 10000, "deskripsi": "baso goyeng."}
 ]
-
-# Inisialisasi Database Sederhana di Session State (Menyimpan semua riwayat pesanan)
-if "all_orders" not in st.session_state:
-    st.session_state.all_orders = []
 
 # Header Aplikasi
 st.title("🍜 Jajan Kuy - Form & Rekapitulasi")
 st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
 st.markdown("---")
 
-# Tab Menu Aplikasi supaya rapi
+# Tab Menu Aplikasi
 tab_form, tab_rekap = st.tabs(["📝 Form Pesanan", "📊 Master Rekapitulasi Gabungan"])
 
 with tab_form:
@@ -62,14 +78,13 @@ with tab_form:
     st.markdown("---")
     st.markdown("### 2. 🛒 Pilih Menu & Kustomisasi")
 
-    # Session state untuk keranjang sementara per input user
     if "current_cart" not in st.session_state:
         st.session_state.current_cart = []
 
-    selected_menu = st.selectbox("Pilih Menu Jajanan:", [f"{item['nama']} - Rp {item['harga']:,}" for item in MENU_JAJANAN])
+    menu_options = [f"{item['nama']} (Rp {item['harga']:,}) - {item['deskripsi']}" for item in MENU_JAJANAN]
+    selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
 
-    # Ambil data menu yang dipilih
-    selected_idx = [f"{item['nama']} - Rp {item['harga']:,}" for item in MENU_JAJANAN].index(selected_menu)
+    selected_idx = menu_options.index(selected_menu_str)
     item_terpilih = MENU_JAJANAN[selected_idx]
 
     col_qty, col_level = st.columns(2)
@@ -82,7 +97,7 @@ with tab_form:
 
     if st.button("➕ Tambah ke Daftar Pesanan Saya"):
         st.session_state.current_cart.append({
-            "nama_menu": item_terpilih["nama"],
+            "nama_menu": f"{item_terpilih['nama']} (Rp {item_terpilih['harga']:,})",
             "harga": item_terpilih["harga"],
             "qty": jumlah_pesan,
             "level": level_pedas,
@@ -114,43 +129,63 @@ with tab_form:
             if not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
-                # Masukkan semua item dari cart ke master database all_orders
+                # Masukkan data ke Database SQLite permanen
                 for cart_item in st.session_state.current_cart:
-                    st.session_state.all_orders.append({
-                        "tanggal": str(tanggal_jajan),
-                        "nama_pemesan": nama_pemesan,
-                        "nama_menu": cart_item["nama_menu"],
-                        "harga": cart_item["harga"],
-                        "qty": cart_item["qty"],
-                        "level": cart_item["level"],
-                        "catatan": cart_item["catatan"]
-                    })
-                # Kosongkan cart sementara
+                    cursor.execute("""
+                        INSERT INTO orders (tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        str(tanggal_jajan),
+                        nama_pemesan,
+                        cart_item["nama_menu"],
+                        cart_item["harga"],
+                        cart_item["qty"],
+                        cart_item["level"],
+                        cart_item["catatan"]
+                    ))
+                    conn.commit()
+
                 st.session_state.current_cart = []
-                st.success("Yeay! Pesanan berhasil disimpan dan digabungkan ke Master Rekap.")
+                st.success("Yeay! Pesanan berhasil disimpan dan masuk ke Master Rekap Bersama!")
                 st.balloons()
 
 with tab_rekap:
-    st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan")
+    st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Live Database)")
     
-    if not st.session_state.all_orders:
-        st.info("Belum ada data pesanan yang masuk. Yuk isi form pesanan terlebih dahulu di tab sebelah!")
+    # Ambil semua data dari database SQLite
+    cursor.execute("SELECT tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan FROM orders")
+    rows = cursor.fetchall()
+    
+    if not rows:
+        st.info("Belum ada data pesanan yang masuk di database. Yuk isi form pesanan terlebih dahulu!")
     else:
-        # Tombol reset master rekap jika diperlukan
-        if st.button("🗑️ Reset / Hapus Semua Rekap"):
-            st.session_state.all_orders = []
+        # Tombol reset database jika diperlukan
+        if st.button("🗑️ Reset / Hapus Semua Rekap Database"):
+            cursor.execute("DELETE FROM orders")
+            conn.commit()
             st.rerun()
 
         st.markdown("---")
         
-        # Kelompokkan berdasarkan Tanggal
-        unique_dates = sorted(list(set(order["tanggal"] for order in st.session_state.all_orders)))
+        # Ubah data sqlite ke format list of dictionary supaya gampang diproses
+        all_orders_db = []
+        for r in rows:
+            all_orders_db.append({
+                "tanggal": r[0],
+                "nama_pemesan": r[1],
+                "nama_menu": r[2],
+                "harga": r[3],
+                "qty": r[4],
+                "level": r[5],
+                "catatan": r[6]
+            })
+
+        unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
 
         for tgl in unique_dates:
             st.markdown(f"### 📅 Tanggal: {tgl}")
-            orders_on_date = [o for o in st.session_state.all_orders if o["tanggal"] == tgl]
+            orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
             
-            # Tampilkan rincian perorangan yang digabung
             total_biaya_tgl = 0
             for idx, ord_data in enumerate(orders_on_date):
                 sub_harga = ord_data["harga"] * ord_data["qty"]
@@ -162,17 +197,14 @@ with tab_rekap:
             
             st.markdown(f"**💰 Total harga Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
             
-            # REKAP AKHIR SESUAI JENIS JAJANAN PADA TANGGAL TERSEBUT
             st.markdown("#### 🛒 Rekap Total Porsi Berdasarkan Jenis Jajanan:")
             
-            # Hitung akumulasi qty per jenis menu di tanggal ini
             summary_menu = {}
             for ord_data in orders_on_date:
                 m_name = ord_data["nama_menu"]
                 m_qty = ord_data["qty"]
                 summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
             
-            # Tampilkan dalam bentuk list/tabel ringkas
             for menu_name, total_qty in summary_menu.items():
                 st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
             
