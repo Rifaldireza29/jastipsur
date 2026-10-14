@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import sqlite3
+import streamlit.components.v1 as components
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -257,16 +258,43 @@ with tab_form:
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
+    # Tampilkan Live Countdown Timer pakai HTML + JS jika ada deadline
+    if deadline_str:
+        target_datetime_str = f"{tanggal_jajan} {deadline_str}:00"
+        
+        countdown_html = f"""
+        <div style="background-color: #ff4b4b; padding: 12px; border-radius: 8px; color: white; text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 15px;">
+            ⏳ Sisa Waktu Pemesanan: <span id="timer" style="font-size: 1.2em; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px;"></span>
+        </div>
+        <script>
+            var countDownDate = new Date("{target_datetime_str}").getTime();
+            var x = setInterval(function() {
+                var now = new Date().getTime();
+                var distance = countDownDate - now;
+                
+                var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                
+                if (distance < 0) {
+                    clearInterval(x);
+                    document.getElementById("timer").innerHTML = "WAKTU HABIS!";
+                    window.location.reload();
+                } else {
+                    document.getElementById("timer").innerHTML = hours + " jam " + minutes + " mnt " + seconds + " dtk";
+                }
+            }, 1000);
+        </script>
+        """
+        components.html(countdown_html, height=70)
+
+    # Cek apakah waktu sekarang sudah lewat
     is_expired = False
     if deadline_str:
         now_time = datetime.datetime.now().time()
         deadline_time = datetime.datetime.strptime(deadline_str, "%H:%M").time()
-        
-        # Cek jika tanggal sama dan waktu sekarang melewati deadline
         if tanggal_jajan == datetime.date.today() and now_time > deadline_time:
             is_expired = True
-        else:
-            st.info(f"⏰ Batas waktu pengisian pesanan hari ini berakhir pukul: **{deadline_str} WIB**")
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
@@ -471,58 +499,4 @@ if is_admin:
                             else:
                                 st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
                         with col_btn:
-                            if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
-                                conn.commit()
-                                st.rerun()
-
-                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;👉 *Total Belanja {nama}:* **Rp {subtotal_orang:,}**")
-                    st.markdown("---")
-                    total_biaya_tgl += subtotal_orang
-                
-                st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
-                
-                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini:")
-                
-                summary_menu = {}
-                for ord_data in orders_on_date:
-                    m_name = ord_data["nama_menu"]
-                    if m_name != "Biaya Jastip":
-                        m_qty = ord_data["qty"]
-                        summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
-                
-                if summary_menu:
-                    for menu_name, total_qty in summary_menu.items():
-                        st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
-                else:
-                    st.write("- Belum ada porsi jajanan makanan.")
-                
-                st.markdown("====================")
-
-    # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
-    with tab_admin_menu:
-        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian & Deadline)")
-        
-        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
-        admin_deadline = st.time_input("Tentukan Batas Waktu (Jam Penutupan Pesanan):", value=datetime.time(10, 0), key="admin_deadline_time")
-        
-        st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
-        st.write("Silakan centang menu apa saja yang **dibuka**:")
-        
-        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-        active_ids = [row[0] for row in cursor.fetchall()]
-        
-        selected_menu_ids = []
-        for item in MENU_JAJANAN:
-            is_checked = item["id"] in active_ids
-            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
-            if check:
-                selected_menu_ids.append(item["id"])
-                
-        if st.button("💾 Simpan Perubahan Menu & Batas Waktu"):
-            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-            deadline_str = admin_deadline.strftime("%H:%M")
-            for m_id in selected_menu_ids:
-                cursor.execute("INSERT INTO active_menu (tanggal, menu_id, deadline_time) VALUES (?, ?, ?)", (str(admin_tgl), m_id, deadline_str))
-            conn.commit()
-            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl}!")
+                            if st.button("❌ Hapus", key=f"del_db_{
