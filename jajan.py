@@ -44,7 +44,7 @@ if "current_cart" not in st.session_state:
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 
-# Daftar Menu Jajanan
+# Daftar Menu Jajanan Lengkap (Termasuk menu baru)
 MENU_JAJANAN = [
     {
         "id": 1, 
@@ -119,11 +119,83 @@ MENU_JAJANAN = [
         "tipe_menu": "normal", 
         "pilihan_harga": [5000, 10000], 
         "deskripsi": "baso goyeng."
+    },
+    {
+        "id": 9, 
+        "nama": "Martabak Mini", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Pisang", "harga": 2500},
+            {"nama": "Coklat", "harga": 2500},
+            {"nama": "Keju", "harga": 3000},
+            {"nama": "Pisang-Coklat", "harga": 3000},
+            {"nama": "Pisang-Keju", "harga": 3000}
+        ],
+        "deskripsi": "Martabak mini manis aneka topping."
+    },
+    {
+        "id": 10, 
+        "nama": "Pangsit Ayam", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Saos Bolognese Chilli Oil", "harga": 10000},
+            {"nama": "Saos Keju Chilli Oil", "harga": 10000}
+        ],
+        "deskripsi": "Pangsit ayam gurih pedas nikmat."
+    },
+    {
+        "id": 11, 
+        "nama": "Risol Asin", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Mayo Ori", "harga": 3500},
+            {"nama": "Mayo Pedas", "harga": 3500},
+            {"nama": "Ayam Ori", "harga": 3500},
+            {"nama": "Ayam Pedas", "harga": 3500},
+            {"nama": "Coklat", "harga": 4000},
+            {"nama": "Matcha", "harga": 4000}
+        ],
+        "deskripsi": "Risol aneka rasa asin & manis."
+    },
+    {
+        "id": 12, 
+        "nama": "Cibay", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000], 
+        "deskripsi": "Aci ngambay endul."
+    },
+    {
+        "id": 13, 
+        "nama": "Kentang Goreng", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000], 
+        "deskripsi": "French fries crispy."
+    },
+    {
+        "id": 14, 
+        "nama": "Nasi Goreng", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [12000], 
+        "deskripsi": "Nasi goreng mantap."
+    },
+    {
+        "id": 15, 
+        "nama": "Paket Komplit Ayam Penyet + Nasi", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [15000], 
+        "deskripsi": "Ayam penyet komplit dengan nasi hangat."
+    },
+    {
+        "id": 16, 
+        "nama": "Mie Goreng Ayam Penyet", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [15000], 
+        "deskripsi": "Mie goreng dipadu ayam penyet gurih."
     }
 ]
 
 # Header Aplikasi
-st.title("🍜 Jajan Kuy - Form & Rekapitulasi")
+st.title("🍜 Jajan Kuy - pengisian form jajan")
 st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
 st.markdown("---")
 
@@ -157,7 +229,7 @@ with tab_form:
     col_nama, col_tgl = st.columns(2)
     
     with col_nama:
-        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Budi / Rifaldy")
+        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Surya / Rifaldy")
     with col_tgl:
         tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today(), key="member_tgl")
 
@@ -205,7 +277,7 @@ with tab_form:
         with col_qty:
             jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
         with col_level:
-            level_pedas = st.selectbox("Level Pedas (Opsional):", ["Tidak Pedas (jiga orok)", "Pedes Dikit (manusia normal)", "Pedas Sedang (set manusia set jurig)", "Pedas mampus (Jurigg siah)"])
+            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
 
         catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
