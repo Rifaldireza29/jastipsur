@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import sqlite3
+import time
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -29,6 +30,7 @@ def init_db():
         CREATE TABLE IF NOT EXISTS active_menu (
             tanggal TEXT,
             menu_id INTEGER,
+            deadline_time TEXT,
             PRIMARY KEY (tanggal, menu_id)
         )
     """)
@@ -250,14 +252,41 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
+    # Cek menu aktif dan waktu deadline untuk tanggal tersebut
+    cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
+    deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
+
+    # Hitung selisih waktu (countdown)
+    is_expired = False
+    time_left_str = ""
+    
+    if deadline_str:
+        now_dt = datetime.datetime.now()
+        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
+        
+        diff = target_dt - now_dt
+        total_seconds = int(diff.total_seconds())
+        
+        if total_seconds <= 0:
+            is_expired = True
+        else:
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+            time_left_str = f"⏳ **Sisa Waktu Pemesanan:** {hours:02d} jam {minutes:02d} menit {seconds:02d} detik lagi"
+            st.warning(time_left_str)
+            # Auto refresh halaman setiap detik supaya timer jalan otomatis di layar
+            time.sleep(1)
+            st.rerun()
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
+    elif is_expired:
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati.")
     else:
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
@@ -327,11 +356,13 @@ with tab_form:
         total_biaya_akhir = subtotal_menu + biaya_jastip
 
         st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
-        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
+        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
-            if not nama_pemesan:
+            if is_expired:
+                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan!")
+            elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
                 for cart_item in st.session_state.current_cart:
@@ -409,101 +440,3 @@ if is_admin:
                 st.rerun()
 
             st.markdown("---")
-            
-            all_orders_db = []
-            for r in rows:
-                all_orders_db.append({
-                    "id": r[0],
-                    "tanggal": r[1],
-                    "nama_pemesan": r[2],
-                    "nama_menu": r[3],
-                    "harga": r[4],
-                    "qty": r[5],
-                    "level": r[6],
-                    "catatan": r[7]
-                })
-
-            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
-
-            for tgl in unique_dates:
-                st.markdown(f"### 📅 Tanggal: {tgl}")
-                orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
-                
-                # --- KELOMPOKKAN BERDASARKAN NAMA PEMESAN ---
-                grouped_by_person = {}
-                for ord_data in orders_on_date:
-                    nama = ord_data["nama_pemesan"]
-                    if nama not in grouped_by_person:
-                        grouped_by_person[nama] = []
-                    grouped_by_person[nama].append(ord_data)
-
-                total_biaya_tgl = 0
-
-                for nama, items in grouped_by_person.items():
-                    st.markdown(f"👤 **{nama}**")
-                    subtotal_orang = 0
-                    
-                    for ord_data in items:
-                        sub_harga = ord_data["harga"] * ord_data["qty"]
-                        subtotal_orang += sub_harga
-                        
-                        col_item, col_btn = st.columns([5, 1])
-                        with col_item:
-                            if ord_data["nama_menu"] == "Biaya Jastip":
-                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,} *( {ord_data['catatan']} )*")
-                            else:
-                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
-                        with col_btn:
-                            if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
-                                conn.commit()
-                                st.rerun()
-
-                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;👉 *Total Belanja {nama}:* **Rp {subtotal_orang:,}**")
-                    st.markdown("---")
-                    total_biaya_tgl += subtotal_orang
-                
-                st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
-                
-                # --- REKAP TOTAL PORSI BERDASARKAN JENIS JAJANAN (DI-FILTER TANPA JASTIP) ---
-                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini:")
-                
-                summary_menu = {}
-                for ord_data in orders_on_date:
-                    m_name = ord_data["nama_menu"]
-                    if m_name != "Biaya Jastip":
-                        m_qty = ord_data["qty"]
-                        summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
-                
-                if summary_menu:
-                    for menu_name, total_qty in summary_menu.items():
-                        st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
-                else:
-                    st.write("- Belum ada porsi jajanan makanan.")
-                
-                st.markdown("====================")
-
-    # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
-    with tab_admin_menu:
-        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian)")
-        
-        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
-        st.info(f"💡 Kamu sedang mengatur menu yang akan tampil untuk tanggal: **{admin_tgl}**")
-        st.write("Silakan centang menu apa saja yang **dibuka**:")
-        
-        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-        active_ids = [row[0] for row in cursor.fetchall()]
-        
-        selected_menu_ids = []
-        for item in MENU_JAJANAN:
-            is_checked = item["id"] in active_ids
-            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
-            if check:
-                selected_menu_ids.append(item["id"])
-                
-        if st.button("💾 Simpan Perubahan Menu Aktif"):
-            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-            for m_id in selected_menu_ids:
-                cursor.execute("INSERT INTO active_menu (tanggal, menu_id) VALUES (?, ?)", (str(admin_tgl), m_id))
-            conn.commit()
-            st.success(f"Berhasil menyimpan menu aktif untuk tanggal {admin_tgl}!")
