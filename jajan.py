@@ -260,7 +260,6 @@ with tab_form:
 
     # Hitung selisih waktu (countdown)
     is_expired = False
-    time_left_str = ""
     
     if deadline_str:
         now_dt = datetime.datetime.now()
@@ -275,9 +274,7 @@ with tab_form:
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
             seconds = total_seconds % 60
-            time_left_str = f"⏳ **Sisa Waktu Pemesanan:** {hours:02d} jam {minutes:02d} menit {seconds:02d} detik lagi"
-            st.warning(time_left_str)
-            # Auto refresh halaman setiap detik supaya timer jalan otomatis di layar
+            st.warning(f"⏳ **Sisa Waktu Pemesanan:** {hours:02d} jam {minutes:02d} menit {seconds:02d} detik lagi (Batas: {deadline_str} WIB)")
             time.sleep(1)
             st.rerun()
 
@@ -440,3 +437,102 @@ if is_admin:
                 st.rerun()
 
             st.markdown("---")
+            
+            all_orders_db = []
+            for r in rows:
+                all_orders_db.append({
+                    "id": r[0],
+                    "tanggal": r[1],
+                    "nama_pemesan": r[2],
+                    "nama_menu": r[3],
+                    "harga": r[4],
+                    "qty": r[5],
+                    "level": r[6],
+                    "catatan": r[7]
+                })
+
+            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
+
+            for tgl in unique_dates:
+                st.markdown(f"### 📅 Tanggal: {tgl}")
+                orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
+                
+                grouped_by_person = {}
+                for ord_data in orders_on_date:
+                    nama = ord_data["nama_pemesan"]
+                    if nama not in grouped_by_person:
+                        grouped_by_person[nama] = []
+                    grouped_by_person[nama].append(ord_data)
+
+                total_biaya_tgl = 0
+
+                for nama, items in grouped_by_person.items():
+                    st.markdown(f"👤 **{nama}**")
+                    subtotal_orang = 0
+                    
+                    for ord_data in items:
+                        sub_harga = ord_data["harga"] * ord_data["qty"]
+                        subtotal_orang += sub_harga
+                        
+                        col_item, col_btn = st.columns([5, 1])
+                        with col_item:
+                            if ord_data["nama_menu"] == "Biaya Jastip":
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,} *( {ord_data['catatan']} )*")
+                            else:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
+                        with col_btn:
+                            if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
+                                conn.commit()
+                                st.rerun()
+
+                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;👉 *Total Belanja {nama}:* **Rp {subtotal_orang:,}**")
+                    st.markdown("---")
+                    total_biaya_tgl += subtotal_orang
+                
+                st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
+                
+                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini:")
+                
+                summary_menu = {}
+                for ord_data in orders_on_date:
+                    m_name = ord_data["nama_menu"]
+                    if m_name != "Biaya Jastip":
+                        m_qty = ord_data["qty"]
+                        summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
+                
+                if summary_menu:
+                    for menu_name, total_qty in summary_menu.items():
+                        st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
+                else:
+                    st.write("- Belum ada porsi jajanan makanan.")
+                
+                st.markdown("====================")
+
+    # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
+    with tab_admin_menu:
+        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian & Deadline)")
+        
+        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
+        admin_deadline = st.time_input("Tentukan Batas Waktu (Jam Penutupan Pesanan):", value=datetime.time(10, 0), key="admin_deadline_time")
+        
+        st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
+        st.write("Silakan centang menu apa saja yang **dibuka**:")
+        
+        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
+        active_ids = [row[0] for row in cursor.fetchall()]
+        
+        selected_menu_ids = []
+        for item in MENU_JAJANAN:
+            is_checked = item["id"] in active_ids
+            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
+            if check:
+                selected_menu_ids.append(item["id"])
+                
+        if st.button("💾 Simpan Perubahan Menu & Batas Waktu"):
+            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
+            deadline_str = admin_deadline.strftime("%H:%M")
+            for m_id in selected_menu_ids:
+                cursor.execute("INSERT INTO active_menu (tanggal, menu_id, deadline_time) VALUES (?, ?, ?)", (str(admin_tgl), m_id, deadline_str))
+            conn.commit()
+            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl}!")
