@@ -429,37 +429,60 @@ if is_admin:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
                 orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
                 
+                # --- KELOMPOKKAN BERDASARKAN NAMA PEMESAN ---
+                grouped_by_person = {}
+                for ord_data in orders_on_date:
+                    nama = ord_data["nama_pemesan"]
+                    if nama not in grouped_by_person:
+                        grouped_by_person[nama] = []
+                    grouped_by_person[nama].append(ord_data)
+
                 total_biaya_tgl = 0
-                for idx, ord_data in enumerate(orders_on_date):
-                    sub_harga = ord_data["harga"] * ord_data["qty"]
-                    total_biaya_tgl += sub_harga
+
+                for nama, items in grouped_by_person.items():
+                    st.markdown(f"👤 **{nama}**")
+                    subtotal_orang = 0
                     
-                    col_info, col_btn = st.columns([5, 1])
-                    with col_info:
-                        st.markdown(f"""
-                        - **{ord_data['nama_pemesan']}** memesan **{ord_data['nama_menu']}** ({ord_data['qty']}x)  
-                          &nbsp;&nbsp;&nbsp;&nbsp;└ *Level:* {ord_data['level']} | *Catatan:* {ord_data['catatan']} | *Subtotal:* Rp {sub_harga:,}
-                        """)
-                    with col_btn:
-                        if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
-                            cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
-                            conn.commit()
-                            st.rerun()
+                    for ord_data in items:
+                        sub_harga = ord_data["harga"] * ord_data["qty"]
+                        subtotal_orang += sub_harga
+                        
+                        col_item, col_btn = st.columns([5, 1])
+                        with col_item:
+                            if ord_data["nama_menu"] == "Biaya Jastip":
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,}")
+                            else:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
+                        with col_btn:
+                            if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
+                                conn.commit()
+                                st.rerun()
+
+                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;👉 *Total Belanja {nama}:* **Rp {subtotal_orang:,}**")
+                    st.markdown("---")
+                    total_biaya_tgl += subtotal_orang
                 
-                st.markdown(f"**💰 Total harga Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
+                st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
                 
-                st.markdown("#### 🛒 Rekap Total Porsi Berdasarkan Jenis Jajanan:")
+                # --- REKAP TOTAL PORSI BERDASARKAN JENIS JAJANAN (DI-FILTER TANPA JASTIP) ---
+                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini:")
                 
                 summary_menu = {}
                 for ord_data in orders_on_date:
                     m_name = ord_data["nama_menu"]
-                    m_qty = ord_data["qty"]
-                    summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
+                    # Jastip dikecualikan dari rekap porsi
+                    if m_name != "Biaya Jastip":
+                        m_qty = ord_data["qty"]
+                        summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
                 
-                for menu_name, total_qty in summary_menu.items():
-                    st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
+                if summary_menu:
+                    for menu_name, total_qty in summary_menu.items():
+                        st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
+                else:
+                    st.write("- Belum ada porsi jajanan makanan.")
                 
-                st.markdown("---")
+                st.markdown("====================")
 
     # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
     with tab_admin_menu:
