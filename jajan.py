@@ -38,7 +38,13 @@ def init_db():
 conn = init_db()
 cursor = conn.cursor()
 
-# Daftar Menu Jajanan dengan Varian Rasa & Pilihan Harga
+# --- INISIALISASI SESSION STATE DI ATAS SUPAYA TIDAK KEYERROR ---
+if "current_cart" not in st.session_state:
+    st.session_state.current_cart = []
+if "show_payment_popup" not in st.session_state:
+    st.session_state.show_payment_popup = False
+
+# Daftar Menu Jajanan
 MENU_JAJANAN = [
     {
         "id": 1, 
@@ -167,18 +173,13 @@ with tab_form:
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     else:
-        if "current_cart" not in st.session_state:
-            st.session_state.current_cart = []
-
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
 
         selected_idx = menu_options.index(selected_menu_str)
         item_terpilih = available_menu[selected_idx]
 
-        # Logika Penanganan Varian Rasa atau Harga Normal
         if item_terpilih["tipe_menu"] == "varian":
-            # Jika punya pilihan varian (seperti Roti Bakar Yomart, Dimsum, Cireng)
             pilihan_varian = st.selectbox(
                 "Pilih Varian Rasa / Jenis:", 
                 item_terpilih["varian"], 
@@ -187,7 +188,6 @@ with tab_form:
             nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
             harga_final = pilihan_varian["harga"]
         else:
-            # Jika menu biasa dengan pilihan harga (misal 5rb / 10rb)
             if len(item_terpilih["pilihan_harga"]) > 1:
                 pilihan_harga_pilih = st.radio(
                     "Pilih Varian Harga:", 
@@ -268,7 +268,7 @@ with tab_form:
                 st.rerun()
 
     # --- POP-UP PEMBAYARAN PRIBADI MEMBER ---
-    if st.session_state.get("show_payment_popup", False):
+    if st.session_state.show_payment_popup:
         st.markdown("---")
         st.info(f"🎉 **Terima kasih, {st.session_state.last_nama_pay}!** Pesanan kamu sudah tercatat.")
         st.markdown(f"### 💰 Total tagihan pribadi kamu: **Rp {st.session_state.last_total_pay:,}**")
