@@ -323,11 +323,11 @@ with tab_form:
                 st.session_state.current_cart.pop(idx)
                 st.rerun()
 
-        biaya_jastip = 500
+        biaya_jastip = 1000
         total_biaya_akhir = subtotal_menu + biaya_jastip
 
         st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
-        st.markdown(f"Biaya Jastip: Rp {biaya_jastip:,}")
+        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
@@ -359,7 +359,7 @@ with tab_form:
                     biaya_jastip,
                     1,
                     "-",
-                    "Jastip titip surya"
+                    "monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk"
                 ))
                 conn.commit()
 
@@ -376,7 +376,7 @@ with tab_form:
     if st.session_state.show_payment_popup:
         st.markdown("---")
         st.info(f"🎉 **Terima kasih, {st.session_state.last_nama_pay}!** Pesanan kamu sudah tercatat.")
-        st.markdown(f"### 💰 Total tagihan pribadi kamu (Sudah termasuk Jastip Rp 500): **Rp {st.session_state.last_total_pay:,}**")
+        st.markdown(f"### 💰 Total tagihan pribadi kamu (Sudah termasuk Jastip Rp 1.000): **Rp {st.session_state.last_total_pay:,}**")
         
         pilihan_bayar = st.radio("Mau langsung bayar sekarang atau nanti?", ["Bayar Sekarang (Scan QRIS)", "Nanti Saja"], key="radio_pilih_bayar")
         
@@ -450,7 +450,7 @@ if is_admin:
                         col_item, col_btn = st.columns([5, 1])
                         with col_item:
                             if ord_data["nama_menu"] == "Biaya Jastip":
-                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,}")
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,} *( {ord_data['catatan']} )*")
                             else:
                                 st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
                         with col_btn:
@@ -471,7 +471,6 @@ if is_admin:
                 summary_menu = {}
                 for ord_data in orders_on_date:
                     m_name = ord_data["nama_menu"]
-                    # Jastip dikecualikan dari rekap porsi
                     if m_name != "Biaya Jastip":
                         m_qty = ord_data["qty"]
                         summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
