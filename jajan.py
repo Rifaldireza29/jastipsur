@@ -44,30 +44,53 @@ if "current_cart" not in st.session_state:
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 
-# Daftar Menu Jajanan Lengkap (Termasuk menu baru)
+# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z) + Menu Baru
 MENU_JAJANAN = [
     {
-        "id": 1, 
-        "nama": "Jambu Krisjon", 
+        "id": 8, 
+        "nama": "Basreng", 
         "tipe_menu": "normal", 
         "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Jambu kristal panghegar yang manis ituh."
+        "deskripsi": "baso goyeng."
     },
     {
-        "id": 2, 
-        "nama": "Roti bakar yomart", 
+        "id": 17, 
+        "nama": "Bola Bola Ayam", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "Bola-bola ayam gurih lezat."
+    },
+    {
+        "id": 12, 
+        "nama": "Cibay", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000], 
+        "deskripsi": "Aci ngambay endul."
+    },
+    {
+        "id": 4, 
+        "nama": "Cilor", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "Cilor dekat mizan yang endul."
+    },
+    {
+        "id": 18, 
+        "nama": "Cilok", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "Cilok kenyal bumbu nikmat."
+    },
+    {
+        "id": 7, 
+        "nama": "Cireng ayam", 
         "tipe_menu": "varian", 
         "varian": [
-            {"nama": "Coklat", "harga": 7000},
-            {"nama": "Strawberry", "harga": 6000},
-            {"nama": "Keju", "harga": 7000},
-            {"nama": "Blueberry", "harga": 6000},
-            {"nama": "Kacang", "harga": 6000},
-            {"nama": "Coklat-Keju", "harga": 10000},
-            {"nama": "Coklat-Kacang", "harga": 9500},
-            {"nama": "Kacang-Strawberry", "harga": 8500}
+            {"nama": "Cireng Ayam Ori", "harga": 2500},
+            {"nama": "Cireng Ayam Pedas", "harga": 2500},
+            {"nama": "Cireng Ayam Keju", "harga": 2500}
         ],
-        "deskripsi": "roti bakar yomart tea nu endul."
+        "deskripsi": "hireng hanas aneka rasa."
     },
     {
         "id": 3, 
@@ -82,18 +105,18 @@ MENU_JAJANAN = [
         "deskripsi": "dimsum ayam & campur aduk dijamin enak."
     },
     {
-        "id": 4, 
-        "nama": "Cilor", 
+        "id": 1, 
+        "nama": "Jambu Krisjon", 
         "tipe_menu": "normal", 
         "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Cilor dekat mizan yang endul."
+        "deskripsi": "Jambu kristal panghegar yang manis ituh."
     },
     {
-        "id": 5, 
-        "nama": "Usus crispy", 
+        "id": 13, 
+        "nama": "Kentang Goreng", 
         "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "usus kabeuki gerri trusted enak banget."
+        "pilihan_harga": [5000], 
+        "deskripsi": "French fries crispy."
     },
     {
         "id": 6, 
@@ -101,24 +124,6 @@ MENU_JAJANAN = [
         "tipe_menu": "normal", 
         "pilihan_harga": [10000], 
         "deskripsi": "kwetiau harga pasar rasa restoran."
-    },
-    {
-        "id": 7, 
-        "nama": "Cireng ayam", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Cireng Ayam Ori", "harga": 2500},
-            {"nama": "Cireng Ayam Pedas", "harga": 2500},
-            {"nama": "Cireng Ayam Keju", "harga": 2500}
-        ],
-        "deskripsi": "hireng hanas aneka rasa."
-    },
-    {
-        "id": 8, 
-        "nama": "Basreng", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "baso goyeng."
     },
     {
         "id": 9, 
@@ -132,6 +137,27 @@ MENU_JAJANAN = [
             {"nama": "Pisang-Keju", "harga": 3000}
         ],
         "deskripsi": "Martabak mini manis aneka topping."
+    },
+    {
+        "id": 16, 
+        "nama": "Mie Goreng Ayam Penyet", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [15000], 
+        "deskripsi": "Mie goreng dipadu ayam penyet gurih."
+    },
+    {
+        "id": 14, 
+        "nama": "Nasi Goreng", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [12000], 
+        "deskripsi": "Nasi goreng mantap."
+    },
+    {
+        "id": 15, 
+        "nama": "Paket Komplit Ayam Penyet + Nasi", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [15000], 
+        "deskripsi": "Ayam penyet komplit dengan nasi hangat."
     },
     {
         "id": 10, 
@@ -158,39 +184,27 @@ MENU_JAJANAN = [
         "deskripsi": "Risol aneka rasa asin & manis."
     },
     {
-        "id": 12, 
-        "nama": "Cibay", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000], 
-        "deskripsi": "Aci ngambay endul."
+        "id": 2, 
+        "nama": "Roti bakar yomart", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Coklat", "harga": 7000},
+            {"nama": "Strawberry", "harga": 6000},
+            {"nama": "Keju", "harga": 7000},
+            {"nama": "Blueberry", "harga": 6000},
+            {"nama": "Kacang", "harga": 6000},
+            {"nama": "Coklat-Keju", "harga": 10000},
+            {"nama": "Coklat-Kacang", "harga": 9500},
+            {"nama": "Kacang-Strawberry", "harga": 8500}
+        ],
+        "deskripsi": "roti bakar yomart tea nu endul."
     },
     {
-        "id": 13, 
-        "nama": "Kentang Goreng", 
+        "id": 5, 
+        "nama": "Usus crispy", 
         "tipe_menu": "normal", 
-        "pilihan_harga": [5000], 
-        "deskripsi": "French fries crispy."
-    },
-    {
-        "id": 14, 
-        "nama": "Nasi Goreng", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [12000], 
-        "deskripsi": "Nasi goreng mantap."
-    },
-    {
-        "id": 15, 
-        "nama": "Paket Komplit Ayam Penyet + Nasi", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [15000], 
-        "deskripsi": "Ayam penyet komplit dengan nasi hangat."
-    },
-    {
-        "id": 16, 
-        "nama": "Mie Goreng Ayam Penyet", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [15000], 
-        "deskripsi": "Mie goreng dipadu ayam penyet gurih."
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "usus kabeuki gerri trusted enak banget."
     }
 ]
 
@@ -297,10 +311,10 @@ with tab_form:
     if not st.session_state.current_cart:
         st.info("Belum ada menu yang ditambahkan.")
     else:
-        subtotal_sementara = 0
+        subtotal_menu = 0
         for idx, cart_item in enumerate(st.session_state.current_cart):
             sub = cart_item["harga"] * cart_item["qty"]
-            subtotal_sementara += sub
+            subtotal_menu += sub
             c1, c2, c3 = st.columns([3, 2, 1])
             c1.write(f"**{cart_item['nama_menu']}** (x{cart_item['qty']}) - Level: {cart_item['level']}")
             c2.write(f"Catatan: {cart_item['catatan']}")
@@ -309,7 +323,12 @@ with tab_form:
                 st.session_state.current_cart.pop(idx)
                 st.rerun()
 
-        st.markdown(f"**Total Biaya Pesanan Kamu: Rp {subtotal_sementara:,}**")
+        biaya_jastip = 500
+        total_biaya_akhir = subtotal_menu + biaya_jastip
+
+        st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
+        st.markdown(f"Biaya Jastip: Rp {biaya_jastip:,}")
+        st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
             if not nama_pemesan:
@@ -330,7 +349,21 @@ with tab_form:
                     ))
                     conn.commit()
 
-                st.session_state.last_total_pay = subtotal_sementara
+                cursor.execute("""
+                    INSERT INTO orders (tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    str(tanggal_jajan),
+                    nama_pemesan,
+                    "Biaya Jastip",
+                    biaya_jastip,
+                    1,
+                    "-",
+                    "Jastip titip surya"
+                ))
+                conn.commit()
+
+                st.session_state.last_total_pay = total_biaya_akhir
                 st.session_state.last_nama_pay = nama_pemesan
                 st.session_state.show_payment_popup = True
                 
@@ -343,7 +376,7 @@ with tab_form:
     if st.session_state.show_payment_popup:
         st.markdown("---")
         st.info(f"🎉 **Terima kasih, {st.session_state.last_nama_pay}!** Pesanan kamu sudah tercatat.")
-        st.markdown(f"### 💰 Total tagihan pribadi kamu: **Rp {st.session_state.last_total_pay:,}**")
+        st.markdown(f"### 💰 Total tagihan pribadi kamu (Sudah termasuk Jastip Rp 500): **Rp {st.session_state.last_total_pay:,}**")
         
         pilihan_bayar = st.radio("Mau langsung bayar sekarang atau nanti?", ["Bayar Sekarang (Scan QRIS)", "Nanti Saja"], key="radio_pilih_bayar")
         
