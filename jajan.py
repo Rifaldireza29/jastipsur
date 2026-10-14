@@ -1,7 +1,6 @@
 import streamlit as st
 import datetime
 import sqlite3
-import time
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -40,13 +39,13 @@ def init_db():
 conn = init_db()
 cursor = conn.cursor()
 
-# --- INISIALISASI SESSION STATE DI ATAS SUPAYA TIDAK KEYERROR ---
+# --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
     st.session_state.current_cart = []
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 
-# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z) + Menu Baru
+# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z)
 MENU_JAJANAN = [
     {
         "id": 8, 
@@ -252,31 +251,22 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    # Cek menu aktif dan waktu deadline untuk tanggal tersebut
+    # Cek menu aktif dan waktu deadline
     cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
-    # Hitung selisih waktu (countdown)
     is_expired = False
-    
     if deadline_str:
-        now_dt = datetime.datetime.now()
-        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
+        now_time = datetime.datetime.now().time()
+        deadline_time = datetime.datetime.strptime(deadline_str, "%H:%M").time()
         
-        diff = target_dt - now_dt
-        total_seconds = int(diff.total_seconds())
-        
-        if total_seconds <= 0:
+        # Cek jika tanggal sama dan waktu sekarang melewati deadline
+        if tanggal_jajan == datetime.date.today() and now_time > deadline_time:
             is_expired = True
         else:
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            seconds = total_seconds % 60
-            st.warning(f"⏳ **Sisa Waktu Pemesanan:** {hours:02d} jam {minutes:02d} menit {seconds:02d} detik lagi (Batas: {deadline_str} WIB)")
-            time.sleep(1)
-            st.rerun()
+            st.info(f"⏰ Batas waktu pengisian pesanan hari ini berakhir pukul: **{deadline_str} WIB**")
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
