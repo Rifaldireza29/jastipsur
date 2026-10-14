@@ -13,7 +13,6 @@ st.set_page_config(
 def init_db():
     conn = sqlite3.connect("database_jajan.db", check_same_thread=False)
     cursor = conn.cursor()
-    # Tabel pesanan
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,7 +25,6 @@ def init_db():
             catatan TEXT
         )
     """)
-    # Tabel untuk menyimpan status menu yang diaktifkan admin per tanggal
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS active_menu (
             tanggal TEXT,
@@ -40,32 +38,82 @@ def init_db():
 conn = init_db()
 cursor = conn.cursor()
 
-# 23 Daftar Menu Jajanan Lengkap
+# Daftar Menu Jajanan dengan Varian Rasa & Pilihan Harga
 MENU_JAJANAN = [
-    {"id": 1, "nama": "Jambu Krisjon", "lokasi": "", "harga": 5000, "deskripsi": "Jambu kristal panghegar yang manis ituh."},
-    {"id": 2, "nama": "Jambu Krisjon", "lokasi": "", "harga": 10000, "deskripsi": "Jambu kristal panghegar yang manis ituh"},
-    {"id": 3, "nama": "Roti bakar coklat", "lokasi": "", "harga": 7000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 4, "nama": "Roti bakar strawberry", "lokasi": "", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 5, "nama": "Roti bakar keju", "lokasi": "", "harga": 7000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 6, "nama": "Roti bakar blueberry", "lokasi": "", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 7, "nama": "Roti bakar kacang", "lokasi": "", "harga": 6000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 8, "nama": "Roti bakar coklat-keju", "lokasi": "", "harga": 10000, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 9, "nama": "Roti bakar coklat-kacang", "lokasi": "", "harga": 9500, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 10, "nama": "Roti bakar kacang-strawberry", "lokasi": "", "harga": 8500, "deskripsi": "roti bakar yomart tea nu endul."},
-    {"id": 11, "nama": "Dimsum ayam", "lokasi": "", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
-    {"id": 12, "nama": "Dimsum ayam", "lokasi": "", "harga": 10000, "deskripsi": "dimsum ayam aja dijamin enak."},
-    {"id": 13, "nama": "Dimsum campur", "lokasi": "", "harga": 5000, "deskripsi": "dimsum ayam aja dijamin enak."},
-    {"id": 14, "nama": "Dimsum campur", "lokasi": "", "harga": 10000, "deskripsi": "Dimsum campur aduk makin enak."},
-    {"id": 15, "nama": "Cilor", "lokasi": "", "harga": 5000, "deskripsi": "Cilor dekat mizan yang endul."},
-    {"id": 16, "nama": "Cilor", "lokasi": "", "harga": 10000, "deskripsi": "Cilor dekat mizan yang endul."},
-    {"id": 17, "nama": "Usus crispy", "lokasi": "", "harga": 5000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
-    {"id": 18, "nama": "Usus crispy", "lokasi": "", "harga": 10000, "deskripsi": "usus kabeuki gerri trusted enak banget."},
-    {"id": 19, "nama": "Kwetiaw", "lokasi": "", "harga": 10000, "deskripsi": "kwetiau harga pasar rasa restoran."},
-    {"id": 20, "nama": "cireng ayam ori", "lokasi": "", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 21, "nama": "cireng ayam pedas", "lokasi": "", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 22, "nama": "cireng ayam keju", "lokasi": "", "harga": 2500, "deskripsi": "hireng hanas."},
-    {"id": 23, "nama": "Basreng", "lokasi": "", "harga": 5000, "deskripsi": "baso goyeng."},
-    {"id": 24, "nama": "Basreng", "lokasi": "", "harga": 10000, "deskripsi": "baso goyeng."}
+    {
+        "id": 1, 
+        "nama": "Jambu Krisjon", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "Jambu kristal panghegar yang manis ituh."
+    },
+    {
+        "id": 2, 
+        "nama": "Roti bakar yomart", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Coklat", "harga": 7000},
+            {"nama": "Strawberry", "harga": 6000},
+            {"nama": "Keju", "harga": 7000},
+            {"nama": "Blueberry", "harga": 6000},
+            {"nama": "Kacang", "harga": 6000},
+            {"nama": "Coklat-Keju", "harga": 10000},
+            {"nama": "Coklat-Kacang", "harga": 9500},
+            {"nama": "Kacang-Strawberry", "harga": 8500}
+        ],
+        "deskripsi": "roti bakar yomart tea nu endul."
+    },
+    {
+        "id": 3, 
+        "nama": "Dimsum", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Dimsum Ayam (Porsi 5rb)", "harga": 5000},
+            {"nama": "Dimsum Ayam (Porsi 10rb)", "harga": 10000},
+            {"nama": "Dimsum Campur (Porsi 5rb)", "harga": 5000},
+            {"nama": "Dimsum Campur (Porsi 10rb)", "harga": 10000}
+        ],
+        "deskripsi": "dimsum ayam & campur aduk dijamin enak."
+    },
+    {
+        "id": 4, 
+        "nama": "Cilor", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "Cilor dekat mizan yang endul."
+    },
+    {
+        "id": 5, 
+        "nama": "Usus crispy", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "usus kabeuki gerri trusted enak banget."
+    },
+    {
+        "id": 6, 
+        "nama": "Kwetiaw", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [10000], 
+        "deskripsi": "kwetiau harga pasar rasa restoran."
+    },
+    {
+        "id": 7, 
+        "nama": "Cireng ayam", 
+        "tipe_menu": "varian", 
+        "varian": [
+            {"nama": "Cireng Ayam Ori", "harga": 2500},
+            {"nama": "Cireng Ayam Pedas", "harga": 2500},
+            {"nama": "Cireng Ayam Keju", "harga": 2500}
+        ],
+        "deskripsi": "hireng hanas aneka rasa."
+    },
+    {
+        "id": 8, 
+        "nama": "Basreng", 
+        "tipe_menu": "normal", 
+        "pilihan_harga": [5000, 10000], 
+        "deskripsi": "baso goyeng."
+    }
 ]
 
 # Header Aplikasi
@@ -73,100 +121,103 @@ st.title("🍜 Jajan Kuy - Form & Rekapitulasi")
 st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
 st.markdown("---")
 
-# Sidebar untuk Mode Admin / Member
+# Sidebar Mode Admin / Member
 st.sidebar.title("🔐 Mode Akses")
 mode_akses = st.sidebar.radio("Pilih Peran:", ["Member (Pemesan)", "Admin (Surya)"])
 
-# Jika masuk mode Admin
+is_admin = False
 if mode_akses == "Admin (Surya)":
     st.sidebar.markdown("---")
     password_admin = st.sidebar.text_input("Password Admin:", type="password")
     
-    # Ganti "surya123" dengan password rahasia pilihan kamu
-    if password_admin == "rezareza": 
+    if password_admin == "surya123": 
+        is_admin = True
         st.sidebar.success("Mode Admin Aktif! 🔓")
-        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian)")
-        
-        admin_tgl = st.date_input("Pilih Tanggal Menu yang Mau Dibuka:", value=datetime.date.today(), key="admin_tgl")
-        
-        st.write("Silakan centang menu apa saja yang **dibuka** untuk tanggal tersebut:")
-        
-        # Ambil menu yang sudah aktif sebelumnya di tanggal ini
-        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-        active_ids = [row[0] for row in cursor.fetchall()]
-        
-        # Form checklist menu
-        selected_menu_ids = []
-        for item in MENU_JAJANAN:
-            is_checked = item["id"] in active_ids
-            check = st.checkbox(f"[{item['lokasi']}] {item['nama']} - Rp {item['harga']:,} ({item['deskripsi']})", value=is_checked, key=f"menu_chk_{item['id']}")
-            if check:
-                selected_menu_ids.append(item["id"])
-                
-        if st.button("💾 Simpan Menu yang Dibuka Hari Ini"):
-            # Hapus setting lama untuk tanggal tersebut lalu masukkan yang baru
-            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-            for m_id in selected_menu_ids:
-                cursor.execute("INSERT INTO active_menu (tanggal, menu_id) VALUES (?, ?)", (str(admin_tgl), m_id))
-            conn.commit()
-            st.success(f"Berhasil menyimpan menu aktif untuk tanggal {admin_tgl}!")
-            
     else:
-        st.warning("⚠️ Masukkan password admin yang benar di sidebar untuk mengakses panel kontrol.")
-        st.stop()
+        st.sidebar.warning("⚠️ Masukkan password admin yang benar.")
 
-# Tab Menu Utama untuk Member & Rekap
-tab_form, tab_rekap = st.tabs(["📝 Form Pesanan Member", "📊 Master Rekapitulasi Gabungan"])
+# --- TAMPILAN TAB BERDASARKAN PERAN ---
+if is_admin:
+    tab_form, tab_rekap, tab_admin_menu = st.tabs(["📝 Form Pesanan", "📊 Master Rekap Gabungan", "🛠️ Panel Kontrol Menu"])
+else:
+    tab_form = st.container()
 
+# ================= TAB 1: FORM PESANAN MEMBER =================
 with tab_form:
+    if is_admin:
+        st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member")
+    
     st.markdown("### 1. 📋 Identitas & Tanggal Jajan")
     col_nama, col_tgl = st.columns(2)
     
     with col_nama:
-        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Surya / Rifaldy")
+        nama_pemesan = st.text_input("Nama Pemesan:", placeholder="Contoh: Budi / Rifaldy")
     with col_tgl:
-        tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today())
+        tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today(), key="member_tgl")
 
     st.markdown("---")
-    st.markdown("### 2. 🛒 Pilih Menu yang Tersedia Hari Ini")
+    st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    # Ambil menu yang diaktifkan oleh admin untuk tanggal tersebut
     cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
 
-    # Filter menu berdasarkan yang di-approve admin
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
     if not available_menu:
-        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba hubungi Surya ya buat buka menunya!")
+        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     else:
         if "current_cart" not in st.session_state:
             st.session_state.current_cart = []
 
-        menu_options = [f"[{item['lokasi']}] {item['nama']} (Rp {item['harga']:,}) - {item['deskripsi']}" for item in available_menu]
+        menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
 
         selected_idx = menu_options.index(selected_menu_str)
         item_terpilih = available_menu[selected_idx]
 
+        # Logika Penanganan Varian Rasa atau Harga Normal
+        if item_terpilih["tipe_menu"] == "varian":
+            # Jika punya pilihan varian (seperti Roti Bakar Yomart, Dimsum, Cireng)
+            pilihan_varian = st.selectbox(
+                "Pilih Varian Rasa / Jenis:", 
+                item_terpilih["varian"], 
+                format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
+            )
+            nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
+            harga_final = pilihan_varian["harga"]
+        else:
+            # Jika menu biasa dengan pilihan harga (misal 5rb / 10rb)
+            if len(item_terpilih["pilihan_harga"]) > 1:
+                pilihan_harga_pilih = st.radio(
+                    "Pilih Varian Harga:", 
+                    item_terpilih["pilihan_harga"], 
+                    format_func=lambda x: f"Rp {x:,}"
+                )
+            else:
+                pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
+                st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
+            
+            nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
+            harga_final = pilihan_harga_pilih
+
         col_qty, col_level = st.columns(2)
         with col_qty:
             jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
         with col_level:
-            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedas Dikit", "Pedas Sedang", "Pedasssss"])
+            level_pedas = st.selectbox("Level Pedas (Opsional):", ["Tidak Pedas (jiga orok)", "Pedes Dikit (manusia normal)", "Pedas Sedang (set manusia set jurig)", "Pedas mampus (Jurigg siah)"])
 
         catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
         if st.button("➕ Tambah ke Daftar Pesanan Saya"):
             st.session_state.current_cart.append({
-                "nama_menu": f"[{item_terpilih['lokasi']}] {item_terpilih['nama']} (Rp {item_terpilih['harga']:,})",
-                "harga": item_terpilih["harga"],
+                "nama_menu": nama_pesanan_final,
+                "harga": harga_final,
                 "qty": jumlah_pesan,
                 "level": level_pedas,
                 "catatan": catatan_item if catatan_item else "-"
             })
-            st.toast(f"Berhasil menambahkan {item_terpilih['nama']}!")
+            st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
 
     st.markdown("---")
     st.markdown("### 🧾 Preview Pesanan Kamu")
@@ -207,85 +258,125 @@ with tab_form:
                     ))
                     conn.commit()
 
+                st.session_state.last_total_pay = subtotal_sementara
+                st.session_state.last_nama_pay = nama_pemesan
+                st.session_state.show_payment_popup = True
+                
                 st.session_state.current_cart = []
-                st.success("Yeay! Pesanan berhasil disimpan dan masuk ke Master Rekap Bersama!")
+                st.success("Yeay! Pesanan berhasil disimpan.")
                 st.balloons()
+                st.rerun()
 
-with tab_rekap:
-    st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Live Database)")
-    
-    cursor.execute("SELECT id, tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan FROM orders")
-    rows = cursor.fetchall()
-    
-    if not rows:
-        st.info("Belum ada data pesanan yang masuk di database. Yuk isi form pesanan terlebih dahulu!")
-    else:
-        if st.button("🗑️ Reset / Hapus Semua Rekap Database"):
-            cursor.execute("DELETE FROM orders")
-            conn.commit()
+    # --- POP-UP PEMBAYARAN PRIBADI MEMBER ---
+    if st.session_state.get("show_payment_popup", False):
+        st.markdown("---")
+        st.info(f"🎉 **Terima kasih, {st.session_state.last_nama_pay}!** Pesanan kamu sudah tercatat.")
+        st.markdown(f"### 💰 Total tagihan pribadi kamu: **Rp {st.session_state.last_total_pay:,}**")
+        
+        pilihan_bayar = st.radio("Mau langsung bayar sekarang atau nanti?", ["Bayar Sekarang (Scan QRIS)", "Nanti Saja"], key="radio_pilih_bayar")
+        
+        if pilihan_bayar == "Bayar Sekarang (Scan QRIS)":
+            st.markdown("#### 💳 Scan QRIS BCA - Rezha Surya Rifaldy")
+            try:
+                st.image("qr_bca.jpeg", width=280, caption="QRIS BCA - Rezha Surya Rifaldy")
+            except Exception:
+                st.warning("⚠️ File gambar `qr_bca.jpeg` belum dimasukkan ke folder kodingan.")
+            st.info("Silakan transfer sesuai nominal total belanjaan kamu di atas, lalu kirim bukti transfer ke Surya ya!")
+            
+        if st.button("✅ Selesai / Tutup Menu Pembayaran"):
+            st.session_state.show_payment_popup = False
             st.rerun()
 
-        st.markdown("---")
+# ================= TAB 2: MASTER REKAP GABUNGAN (KHUSUS ADMIN) =================
+if is_admin:
+    with tab_rekap:
+        st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Eksklusif Admin)")
         
-        all_orders_db = []
-        for r in rows:
-            all_orders_db.append({
-                "id": r[0],
-                "tanggal": r[1],
-                "nama_pemesan": r[2],
-                "nama_menu": r[3],
-                "harga": r[4],
-                "qty": r[5],
-                "level": r[6],
-                "catatan": r[7]
-            })
+        cursor.execute("SELECT id, tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan FROM orders")
+        rows = cursor.fetchall()
+        
+        if not rows:
+            st.info("Belum ada data pesanan yang masuk di database.")
+        else:
+            if st.button("🗑️ Reset / Hapus Semua Rekap Database"):
+                cursor.execute("DELETE FROM orders")
+                conn.commit()
+                st.rerun()
 
-        unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
-
-        for tgl in unique_dates:
-            st.markdown(f"### 📅 Tanggal: {tgl}")
-            orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
-            
-            total_biaya_tgl = 0
-            for idx, ord_data in enumerate(orders_on_date):
-                sub_harga = ord_data["harga"] * ord_data["qty"]
-                total_biaya_tgl += sub_harga
-                
-                col_info, col_btn = st.columns([5, 1])
-                with col_info:
-                    st.markdown(f"""
-                    - **{ord_data['nama_pemesan']}** memesan **{ord_data['nama_menu']}** ({ord_data['qty']}x)  
-                      &nbsp;&nbsp;&nbsp;&nbsp;└ *Level:* {ord_data['level']} | *Catatan:* {ord_data['catatan']} | *Subtotal:* Rp {sub_harga:,}
-                    """)
-                with col_btn:
-                    if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
-                        cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
-                        conn.commit()
-                        st.rerun()
-            
-            st.markdown(f"**💰 Total harga Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
-            
-            st.markdown("#### 🛒 Rekap Total Porsi Berdasarkan Jenis Jajanan:")
-            
-            summary_menu = {}
-            for ord_data in orders_on_date:
-                m_name = ord_data["nama_menu"]
-                m_qty = ord_data["qty"]
-                summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
-            
-            for menu_name, total_qty in summary_menu.items():
-                st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
-            
             st.markdown("---")
             
-    # --- BAGIAN QR CODE BCA ASLI DI AKHIR REKAP ---
-    st.markdown("---")
-    st.markdown("### 💳 Pembayaran Transfer QRIS BCA")
-    st.write("Silakan scan QR di bawah ini untuk melakukan pembayaran transfer jajanan ke rekening **Rezha Surya Rifaldy**[cite: 3]:")
-    
-    try:
-        st.image("qr_bca.jpeg", width=300, caption="QRIS BCA - Rezha Surya Rifaldy[cite: 3]")
-    except Exception:
-        st.warning("⚠️ File gambar `qr_bca.jpeg` belum dimasukkan ke folder kodingan. Pastikan file fotonya sudah disatukan di folder yang sama ya!")
-    
-    st.info("Catatan: Jangan lupa kirim bukti transfer setelah scan ya, brader!")
+            all_orders_db = []
+            for r in rows:
+                all_orders_db.append({
+                    "id": r[0],
+                    "tanggal": r[1],
+                    "nama_pemesan": r[2],
+                    "nama_menu": r[3],
+                    "harga": r[4],
+                    "qty": r[5],
+                    "level": r[6],
+                    "catatan": r[7]
+                })
+
+            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
+
+            for tgl in unique_dates:
+                st.markdown(f"### 📅 Tanggal: {tgl}")
+                orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
+                
+                total_biaya_tgl = 0
+                for idx, ord_data in enumerate(orders_on_date):
+                    sub_harga = ord_data["harga"] * ord_data["qty"]
+                    total_biaya_tgl += sub_harga
+                    
+                    col_info, col_btn = st.columns([5, 1])
+                    with col_info:
+                        st.markdown(f"""
+                        - **{ord_data['nama_pemesan']}** memesan **{ord_data['nama_menu']}** ({ord_data['qty']}x)  
+                          &nbsp;&nbsp;&nbsp;&nbsp;└ *Level:* {ord_data['level']} | *Catatan:* {ord_data['catatan']} | *Subtotal:* Rp {sub_harga:,}
+                        """)
+                    with col_btn:
+                        if st.button("❌ Hapus", key=f"del_db_{ord_data['id']}"):
+                            cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
+                            conn.commit()
+                            st.rerun()
+                
+                st.markdown(f"**💰 Total harga Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
+                
+                st.markdown("#### 🛒 Rekap Total Porsi Berdasarkan Jenis Jajanan:")
+                
+                summary_menu = {}
+                for ord_data in orders_on_date:
+                    m_name = ord_data["nama_menu"]
+                    m_qty = ord_data["qty"]
+                    summary_menu[m_name] = summary_menu.get(m_name, 0) + m_qty
+                
+                for menu_name, total_qty in summary_menu.items():
+                    st.write(f"- **{menu_name}**: total **{total_qty} porsi**")
+                
+                st.markdown("---")
+
+    # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
+    with tab_admin_menu:
+        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian)")
+        
+        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
+        st.info(f"💡 Kamu sedang mengatur menu yang akan tampil untuk tanggal: **{admin_tgl}**")
+        st.write("Silakan centang menu apa saja yang **dibuka**:")
+        
+        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
+        active_ids = [row[0] for row in cursor.fetchall()]
+        
+        selected_menu_ids = []
+        for item in MENU_JAJANAN:
+            is_checked = item["id"] in active_ids
+            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
+            if check:
+                selected_menu_ids.append(item["id"])
+                
+        if st.button("💾 Simpan Perubahan Menu Aktif"):
+            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
+            for m_id in selected_menu_ids:
+                cursor.execute("INSERT INTO active_menu (tanggal, menu_id) VALUES (?, ?)", (str(admin_tgl), m_id))
+            conn.commit()
+            st.success(f"Berhasil menyimpan menu aktif untuk tanggal {admin_tgl}!")
