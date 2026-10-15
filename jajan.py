@@ -251,28 +251,33 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    # Cek menu aktif dan waktu deadline
+    # Cek menu aktif dan waktu deadline dari database[cite: 8]
     cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
+    # Logika pengecekan waktu habis (expired)
     is_expired = False
     if deadline_str:
-        now_time = datetime.datetime.now().time()
-        deadline_time = datetime.datetime.strptime(deadline_str, "%H:%M").time()
+        now_dt = datetime.datetime.now()
+        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
         
-        if tanggal_jajan == datetime.date.today() and now_time > deadline_time:
+        if now_dt > target_dt:
             is_expired = True
         else:
-            st.info(f"⏰ Batas waktu pengisian pesanan hari ini berakhir pukul: **{deadline_str} WIB**")
+            diff = target_dt - now_dt
+            hours = int(diff.total_seconds() // 3600)
+            minutes = int((diff.total_seconds() % 3600) // 60)
+            seconds = int(diff.total_seconds() % 60)
+            st.info(f"⏳ **Sisa Waktu Pemesanan:** {hours} jam {minutes} menit {seconds} detik lagi (Batas: **{deadline_str} WIB**)[cite: 8]")
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
     if not available_menu:
-        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
+        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya![cite: 8]")
     elif is_expired:
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati.")
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form dikunci[cite: 8].")
     else:
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
@@ -311,14 +316,17 @@ with tab_form:
         catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
         if st.button("➕ Tambah ke Daftar Pesanan Saya"):
-            st.session_state.current_cart.append({
-                "nama_menu": nama_pesanan_final,
-                "harga": harga_final,
-                "qty": jumlah_pesan,
-                "level": level_pedas,
-                "catatan": catatan_item if catatan_item else "-"
-            })
-            st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
+            if is_expired:
+                st.error("Waktu pemesanan sudah habis, tidak dapat menambah pesanan![cite: 8]")
+            else:
+                st.session_state.current_cart.append({
+                    "nama_menu": nama_pesanan_final,
+                    "harga": harga_final,
+                    "qty": jumlah_pesan,
+                    "level": level_pedas,
+                    "catatan": catatan_item if catatan_item else "-"
+                })
+                st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
 
     st.markdown("---")
     st.markdown("### 🧾 Preview Pesanan Kamu")
@@ -347,7 +355,7 @@ with tab_form:
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
             if is_expired:
-                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan!")
+                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan![cite: 8]")
             elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
