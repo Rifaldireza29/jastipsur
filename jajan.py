@@ -268,21 +268,21 @@ with tab_form:
         </div>
         <script>
             var targetDate = new Date("{target_datetime_str}").getTime();
-            var x = setInterval(function() {
+            var x = setInterval(function() {{
                 var now = new Date().getTime();
                 var distance = targetDate - now;
                 
-                if (distance < 0) {
+                if (distance < 0) {{
                     clearInterval(x);
-                    document.getElementById("live-timerinnerHTML = "WAKTU HABIS!";
+                    document.getElementById("live-timer").innerHTML = "WAKTU HABIS!";
                     window.location.reload();
-                } else {
+                }} else {{
                     var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
                     var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
                     var seconds = Math.floor((distance % (1000 * 60)) / 1000);
                     document.getElementById("live-timer").innerHTML = hours + " jam " + minutes + " menit " + seconds + " detik lagi";
-                }
-            }, 1000);
+                }}
+            }}, 1000);
         </script>
         """
         components.html(timer_code, height=65)
