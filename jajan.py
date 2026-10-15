@@ -239,7 +239,7 @@ else:
 # ================= TAB 1: FORM PESANAN MEMBER =================
 with tab_form:
     if is_admin:
-        st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member")
+        st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member (Bebas akses)")
     
     st.markdown("### 1. 📋 Identitas & Tanggal Jajan")
     col_nama, col_tgl = st.columns(2)
@@ -258,10 +258,17 @@ with tab_form:
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
-    # Tampilkan Live Countdown Timer interaktif berbasis JS (Realtime bergerak detik per detik)
+    # Pengecekan Waktu Habis secara Mutlak di Server Python (WIB)
+    is_expired = False
     if deadline_str:
+        now_local = datetime.datetime.now()
+        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
+        if now_local > target_dt:
+            is_expired = True
+
+    # Tampilkan Live Countdown Timer interaktif berbasis JS
+    if deadline_str and not is_expired:
         target_datetime_str = f"{tanggal_jajan}T{deadline_str}:00"
-        
         timer_code = f"""
         <div style="background-color: #ff4b4b; padding: 12px; border-radius: 8px; color: white; text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 15px;">
             ⏳ Sisa Waktu Pemesanan: <span id="live-timer" style="font-size: 1.2em; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px;">Memuat...</span>
@@ -287,21 +294,18 @@ with tab_form:
         """
         components.html(timer_code, height=65)
 
-    # Validasi waktu habis di sisi Python
-    is_expired = False
-    if deadline_str:
-        now_local = datetime.datetime.now()
-        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
-        if now_local > target_dt:
-            is_expired = True
-
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
+    # LOGIKA UTAMA PENGUNCIAN MEMBER
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
-    elif is_expired:
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form dikunci.")
+    elif is_expired and not is_admin:
+        # Jika waktu habis DAN yang akses adalah Member, blokir total form!
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan ditutup.")
     else:
+        if is_expired and is_admin:
+            st.warning(f"⚠️ **Perhatian Admin:** Waktu pemesanan tanggal {tanggal_jajan} (Deadline: {deadline_str} WIB) sudah lewat, tapi Anda dalam mode Admin sehingga tetap bisa menguji form.")
+
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
 
@@ -339,7 +343,7 @@ with tab_form:
         catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
         if st.button("➕ Tambah ke Daftar Pesanan Saya"):
-            if is_expired:
+            if is_expired and not is_admin:
                 st.error("Waktu pemesanan sudah habis, tidak dapat menambah pesanan!")
             else:
                 st.session_state.current_cart.append({
@@ -377,7 +381,7 @@ with tab_form:
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
-            if is_expired:
+            if is_expired and not is_admin:
                 st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan!")
             elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
