@@ -306,7 +306,7 @@ with tab_form:
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     elif is_expired and not is_admin:
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan dikunci mutlak.")
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Monmaap sudah gabisa pesan:(( )).")
     else:
         if is_expired and is_admin:
             st.warning(f"⚠️ **Perhatian Admin:** Waktu pemesanan tanggal {tanggal_jajan} (Deadline: {deadline_str} WIB) sudah lewat, tapi Anda dalam mode Admin sehingga tetap bisa mengakses form.")
