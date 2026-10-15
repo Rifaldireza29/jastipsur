@@ -258,12 +258,18 @@ with tab_form:
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
-    # Pengecekan Waktu Habis secara Mutlak di Server Python (WIB)
+    # Menggunakan Zona Waktu WIB (UTC+7) secara pasti agar tidak meleset 7 jam
+    WIB = datetime.timezone(datetime.timedelta(hours=7))
+    now_wib = datetime.datetime.now(WIB)
+
     is_expired = False
     if deadline_str:
-        now_local = datetime.datetime.now()
-        target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
-        if now_local > target_dt:
+        target_dt = datetime.datetime.combine(
+            tanggal_jajan, 
+            datetime.datetime.strptime(deadline_str, "%H:%M").time()
+        ).replace(tzinfo=WIB)
+        
+        if now_wib > target_dt:
             is_expired = True
 
     # Tampilkan Live Countdown Timer interaktif berbasis JS
@@ -296,15 +302,14 @@ with tab_form:
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
-    # LOGIKA UTAMA PENGUNCIAN MEMBER
+    # LOGIKA PENGUNCIAN MUTLAK MEMBER
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     elif is_expired and not is_admin:
-        # Jika waktu habis DAN yang akses adalah Member, blokir total form!
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan ditutup.")
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan dikunci mutlak.")
     else:
         if is_expired and is_admin:
-            st.warning(f"⚠️ **Perhatian Admin:** Waktu pemesanan tanggal {tanggal_jajan} (Deadline: {deadline_str} WIB) sudah lewat, tapi Anda dalam mode Admin sehingga tetap bisa menguji form.")
+            st.warning(f"⚠️ **Perhatian Admin:** Waktu pemesanan tanggal {tanggal_jajan} (Deadline: {deadline_str} WIB) sudah lewat, tapi Anda dalam mode Admin sehingga tetap bisa mengakses form.")
 
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
