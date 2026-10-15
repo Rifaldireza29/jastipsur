@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
 import sqlite3
+import streamlit.components.v1 as components
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -251,33 +252,55 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    # Cek menu aktif dan waktu deadline dari database[cite: 8]
+    # Cek menu aktif dan waktu deadline dari database
     cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
-    # Logika pengecekan waktu habis (expired)
+    # Tampilkan Live Countdown Timer interaktif berbasis JS (Realtime bergerak detik per detik)
+    if deadline_str:
+        target_datetime_str = f"{tanggal_jajan}T{deadline_str}:00"
+        
+        timer_code = f"""
+        <div style="background-color: #ff4b4b; padding: 12px; border-radius: 8px; color: white; text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 15px;">
+            ⏳ Sisa Waktu Pemesanan: <span id="live-timer" style="font-size: 1.2em; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px;">Memuat...</span>
+        </div>
+        <script>
+            var targetDate = new Date("{target_datetime_str}").getTime();
+            var x = setInterval(function() {
+                var now = new Date().getTime();
+                var distance = targetDate - now;
+                
+                if (distance < 0) {
+                    clearInterval(x);
+                    document.getElementById("live-timerinnerHTML = "WAKTU HABIS!";
+                    window.location.reload();
+                } else {
+                    var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                    document.getElementById("live-timer").innerHTML = hours + " jam " + minutes + " menit " + seconds + " detik lagi";
+                }
+            }, 1000);
+        </script>
+        """
+        components.html(timer_code, height=65)
+
+    # Validasi waktu habis di sisi Python
     is_expired = False
     if deadline_str:
-        now_dt = datetime.datetime.now()
+        now_local = datetime.datetime.now()
         target_dt = datetime.datetime.combine(tanggal_jajan, datetime.datetime.strptime(deadline_str, "%H:%M").time())
-        
-        if now_dt > target_dt:
+        if now_local > target_dt:
             is_expired = True
-        else:
-            diff = target_dt - now_dt
-            hours = int(diff.total_seconds() // 3600)
-            minutes = int((diff.total_seconds() % 3600) // 60)
-            seconds = int(diff.total_seconds() % 60)
-            st.info(f"⏳ **Sisa Waktu Pemesanan:** {hours} jam {minutes} menit {seconds} detik lagi (Batas: **{deadline_str} WIB**)[cite: 8]")
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
     if not available_menu:
-        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya![cite: 8]")
+        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     elif is_expired:
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form dikunci[cite: 8].")
+        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form dikunci.")
     else:
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
@@ -317,7 +340,7 @@ with tab_form:
 
         if st.button("➕ Tambah ke Daftar Pesanan Saya"):
             if is_expired:
-                st.error("Waktu pemesanan sudah habis, tidak dapat menambah pesanan![cite: 8]")
+                st.error("Waktu pemesanan sudah habis, tidak dapat menambah pesanan!")
             else:
                 st.session_state.current_cart.append({
                     "nama_menu": nama_pesanan_final,
@@ -355,7 +378,7 @@ with tab_form:
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
             if is_expired:
-                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan![cite: 8]")
+                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan!")
             elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
