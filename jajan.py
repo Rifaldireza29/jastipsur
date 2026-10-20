@@ -22,17 +22,15 @@ def init_gspread():
     creds_dict = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
+    # Nama file Google Spreadsheet yang benar tanpa huruf r tambahan
     spreadsheet = client.open("Database_Jastipsur")
     return spreadsheet
 
 try:
     sh = init_gspread()
-    
-    # Langsung panggil worksheet-nya tanpa fungsi buat ulang yang bikin konflik
     sheet_orders = sh.worksheet("orders")
     sheet_active_menu = sh.worksheet("active_menu")
     sheet_payment = sh.worksheet("payment_status")
-
 except Exception as e:
     st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan ketiga tab ('orders', 'active_menu', 'payment_status') sudah ada! Error: {e}")
     st.stop()
@@ -249,13 +247,20 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    active_rows_raw = sheet_active_menu.get_all_records()
+    try:
+        active_rows_raw = sheet_active_menu.get_all_records()
+    except:
+        active_rows_raw = []
+
     active_menu_ids = []
     deadline_str = None
     
     for r in active_rows_raw:
         if str(r.get("tanggal")) == str(tanggal_jajan):
-            active_menu_ids.append(int(r.get("menu_id")))
+            try:
+                active_menu_ids.append(int(r.get("menu_id")))
+            except:
+                pass
             if r.get("deadline_time"):
                 deadline_str = str(r.get("deadline_time"))
 
@@ -264,13 +269,16 @@ with tab_form:
 
     is_expired = False
     if deadline_str:
-        target_dt = datetime.datetime.combine(
-            tanggal_jajan, 
-            datetime.datetime.strptime(deadline_str, "%H:%M").time()
-        ).replace(tzinfo=WIB)
-        
-        if now_wib > target_dt:
-            is_expired = True
+        try:
+            target_dt = datetime.datetime.combine(
+                tanggal_jajan, 
+                datetime.datetime.strptime(deadline_str, "%H:%M").time()
+            ).replace(tzinfo=WIB)
+            
+            if now_wib > target_dt:
+                is_expired = True
+        except:
+            pass
 
     if deadline_str and not is_expired:
         target_datetime_str = f"{tanggal_jajan}T{deadline_str}:00"
@@ -302,7 +310,7 @@ with tab_form:
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
     if not available_menu:
-        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
+        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau buka menu melalui Panel Kontrol Admin ya!")
     elif is_expired and not is_admin:
         st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan dikunci mutlak.")
     else:
@@ -389,7 +397,10 @@ with tab_form:
             elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
-                all_orders_data = sheet_orders.get_all_records()
+                try:
+                    all_orders_data = sheet_orders.get_all_records()
+                except:
+                    all_orders_data = []
                 new_id = len(all_orders_data) + 1
 
                 for cart_item in st.session_state.current_cart:
@@ -454,7 +465,10 @@ if is_admin:
             if st.button("🔄 Refresh Data Rekap"):
                 st.rerun()
         
-        orders_data_raw = sheet_orders.get_all_records()
+        try:
+            orders_data_raw = sheet_orders.get_all_records()
+        except:
+            orders_data_raw = []
         
         if not orders_data_raw:
             st.info("Belum ada data pesanan yang masuk di Google Sheet.")
@@ -470,21 +484,27 @@ if is_admin:
             
             all_orders_db = []
             for r in orders_data_raw:
-                if r.get("id") != "":
-                    all_orders_db.append({
-                        "id": int(r.get("id", 0)),
-                        "tanggal": str(r.get("tanggal", "")),
-                        "nama_pemesan": str(r.get("nama_pemesan", "")),
-                        "nama_menu": str(r.get("nama_menu", "")),
-                        "harga": int(r.get("harga", 0)),
-                        "qty": int(r.get("qty", 0)),
-                        "level": str(r.get("level", "")),
-                        "catatan": str(r.get("catatan", ""))
-                    })
+                if r.get("id") != "" and r.get("id") is not None:
+                    try:
+                        all_orders_db.append({
+                            "id": int(r.get("id", 0)),
+                            "tanggal": str(r.get("tanggal", "")),
+                            "nama_pemesan": str(r.get("nama_pemesan", "")),
+                            "nama_menu": str(r.get("nama_menu", "")),
+                            "harga": int(r.get("harga", 0)),
+                            "qty": int(r.get("qty", 0)),
+                            "level": str(r.get("level", "")),
+                            "catatan": str(r.get("catatan", ""))
+                        })
+                    except:
+                        pass
 
             unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
 
-            payment_rows_raw = sheet_payment.get_all_records()
+            try:
+                payment_rows_raw = sheet_payment.get_all_records()
+            except:
+                payment_rows_raw = []
 
             for tgl in unique_dates:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
@@ -620,8 +640,12 @@ if is_admin:
         st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
         st.write("Silakan centang menu apa saja yang **dibuka**:")
         
-        active_menu_raw = sheet_active_menu.get_all_records()
-        active_ids = [int(row["menu_id"]) for row in active_menu_raw if str(row.get("tanggal")) == str(admin_tgl)]
+        try:
+            active_menu_raw = sheet_active_menu.get_all_records()
+        except:
+            active_menu_raw = []
+
+        active_ids = [int(row["menu_id"]) for row in active_menu_raw if str(row.get("tanggal")) == str(admin_tgl) and str(row.get("menu_id", "")) != ""]
         
         selected_menu_ids = []
         for item in MENU_JAJANAN:
