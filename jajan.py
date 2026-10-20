@@ -34,6 +34,15 @@ def init_db():
             PRIMARY KEY (tanggal, menu_id)
         )
     """)
+    # Tabel baru untuk menyimpan status pembayaran lunas per pemesan per tanggal
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS payment_status (
+            tanggal TEXT,
+            nama_pemesan TEXT,
+            is_lunas INTEGER,
+            PRIMARY KEY (tanggal, nama_pemesan)
+        )
+    """)
     conn.commit()
     return conn
 
@@ -252,13 +261,11 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    # Cek menu aktif dan waktu deadline dari database
     cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
     active_rows = cursor.fetchall()
     active_menu_ids = [r[0] for r in active_rows]
     deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
 
-    # Menggunakan Zona Waktu WIB (UTC+7) secara pasti
     WIB = datetime.timezone(datetime.timedelta(hours=7))
     now_wib = datetime.datetime.now(WIB)
 
@@ -272,7 +279,6 @@ with tab_form:
         if now_wib > target_dt:
             is_expired = True
 
-    # Tampilkan Live Countdown Timer interaktif berbasis JS
     if deadline_str and not is_expired:
         target_datetime_str = f"{tanggal_jajan}T{deadline_str}:00"
         timer_code = """
@@ -302,7 +308,6 @@ with tab_form:
 
     available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
 
-    # LOGIKA PENGUNCIAN MUTLAK MEMBER
     if not available_menu:
         st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau hubungi Surya ya!")
     elif is_expired and not is_admin:
@@ -429,7 +434,6 @@ with tab_form:
                 st.balloons()
                 st.rerun()
 
-    # --- POP-UP PEMBAYARAN PRIBADI MEMBER ---
     if st.session_state.show_payment_popup:
         st.markdown("---")
         st.info(f"🎉 **Terima kasih, {st.session_state.last_nama_pay}!** Pesanan kamu sudah tercatat.")
@@ -467,6 +471,7 @@ if is_admin:
         else:
             if st.button("🗑️ Reset / Hapus Semua Rekap Database"):
                 cursor.execute("DELETE FROM orders")
+                cursor.execute("DELETE FROM payment_status")
                 conn.commit()
                 st.rerun()
 
@@ -500,14 +505,37 @@ if is_admin:
 
                 total_biaya_tgl = 0
 
+                st.markdown("#### 👥 Status Pembayaran & Daftar Belanja Pemesan:")
                 for nama, items in grouped_by_person.items():
-                    st.markdown(f"👤 **{nama}**")
                     subtotal_orang = 0
+                    for ord_data in items:
+                        subtotal_orang += ord_data["harga"] * ord_data["qty"]
+
+                    # Ambil status lunas dari database
+                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
+                    p_status = cursor.fetchone()
+                    is_currently_lunas = True if p_status and p_status[0] == 1 else False
+
+                    # Checkbox interaktif untuk status lunas
+                    col_chk, col_info = st.columns([1, 5])
+                    with col_chk:
+                        new_lunas_status = st.checkbox(f"Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
+                        
+                        # Update status ke database jika checkbox berubah
+                        if new_lunas_status != is_currently_lunas:
+                            if new_lunas_status:
+                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, 1)", (tgl, nama))
+                            else:
+                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, 0)", (tgl, nama))
+                            conn.commit()
+                            st.rerun()
+
+                    with col_info:
+                        status_badge = "✅ **LUNAS**" if new_lunas_status else "⏳ **BELUM LUNAS**"
+                        st.markdown(f"👤 **{nama}** — Total: Rp {subtotal_orang:,} | Status: {status_badge}")
                     
                     for ord_data in items:
                         sub_harga = ord_data["harga"] * ord_data["qty"]
-                        subtotal_orang += sub_harga
-                        
                         col_item, col_btn_del = st.columns([5, 1])
                         with col_item:
                             if ord_data["nama_menu"] == "Biaya Jastip":
@@ -520,13 +548,12 @@ if is_admin:
                                 conn.commit()
                                 st.rerun()
 
-                    st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;👉 *Total Belanja {nama}:* **Rp {subtotal_orang:,}**")
                     st.markdown("---")
                     total_biaya_tgl += subtotal_orang
                 
                 st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
                 
-                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini:")
+                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
                 
                 summary_menu = {}
                 for ord_data in orders_on_date:
@@ -542,7 +569,9 @@ if is_admin:
                         summary_menu[m_name]["pemesan_list"].append(f"{m_pemesan} ({m_qty})")
                 
                 if summary_menu:
-                    for menu_name, data_val in summary_menu.items():
+                    # Mengurutkan nama menu secara A-Z
+                    sorted_summary_menu = sorted(summary_menu.items())
+                    for menu_name, data_val in sorted_summary_menu:
                         gabungan_nama = ", ".join(data_val["pemesan_list"])
                         st.write(f"- **{menu_name}**: total **{data_val['total_qty']} porsi** — *({gabungan_nama})*")
                 else:
