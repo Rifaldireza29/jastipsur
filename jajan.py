@@ -22,7 +22,7 @@ def init_gspread():
     creds_dict = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("Database_Jastiprsur")
+    spreadsheet = client.open("Database_Jastipsur")
     return spreadsheet
 
 try:
