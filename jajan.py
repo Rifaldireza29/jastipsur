@@ -521,7 +521,6 @@ if is_admin:
                     status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
 
                     for idx, m_item in enumerate(menu_items):
-                        m_sub = m_item["harga"] * m_item["qty"]
                         harga_satuan_str = f"Rp {m_item['harga']:,}"
                         
                         display_no = no_urut if idx == 0 else ""
@@ -532,7 +531,7 @@ if is_admin:
                         if is_last_item:
                             subtotal_text = f"Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk jastip)"
                         else:
-                            subtotal_text = f"Rp {m_sub:,}"
+                            subtotal_text = ""  # Kosongkan subtotal untuk item selain item terakhir per pemesan
 
                         table_rows.append({
                             "No": display_no,
