@@ -12,14 +12,16 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SETUP KONEKSI GOOGLE SHEETS ---
+# --- SETUP KONEKSI GOOGLE SHEETS VIA STREAMLIT SECRETS ---
 @st.cache_resource
 def init_gspread():
     scope = [
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    # Membaca credentials dari st.secrets Streamlit Cloud
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
     spreadsheet = client.open("Database Jajan Surya")
     return spreadsheet
@@ -30,7 +32,7 @@ try:
     sheet_active_menu = sh.worksheet("active_menu")
     sheet_payment = sh.worksheet("payment_status")
 except Exception as e:
-    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'credentials.json' ada dan Google Sheet sudah di-share ke email bot! Error: {e}")
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan secrets 'gcp_service_account' sudah diatur di Streamlit Cloud dan Google Sheet sudah di-share! Error: {e}")
     st.stop()
 
 # --- INISIALISASI SESSION STATE ---
@@ -498,7 +500,7 @@ if is_admin:
 
                 st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                 
-                # Header Tabel Rapih ala Excel (Tanpa st.dataframe yang bikin kaku)
+                # Header Tabel Rapi & Simpel
                 header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
                 header_cols[0].markdown("**No**")
                 header_cols[1].markdown("**Pemesan**")
@@ -519,7 +521,6 @@ if is_admin:
                     subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                     total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                    # Cek status lunas
                     is_currently_lunas = False
                     for pr in payment_rows_raw:
                         if str(pr.get("tanggal")) == str(tgl) and str(pr.get("nama_pemesan")) == str(nama):
@@ -571,7 +572,7 @@ if is_admin:
                         row_cols[7].write(m_item["catatan"])
                         row_cols[8].write(subtotal_text)
                         
-                        # Tombol Hapus (X) langsung di ujung kanan baris menu masing-masing
+                        # Tombol Hapus (X) langsung di ujung kanan baris menu
                         with row_cols[9]:
                             if st.button("❌", key=f"del_btn_{m_item['id']}"):
                                 cell = sheet_orders.find(str(m_item['id']))
