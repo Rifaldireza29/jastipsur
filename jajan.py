@@ -551,14 +551,12 @@ if is_admin:
                 if table_rows:
                     df_pesanan = pd.DataFrame(table_rows)
                     
-                    # Tampilkan tabel interaktif bawaan Streamlit yang rapi berbentuk kotak grid
                     st.dataframe(
                         df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Harga Satuan", "Qty", "Level", "Catatan", "Subtotal"]],
                         use_container_width=True,
                         hide_index=True
                     )
 
-                    # Tombol hapus satuan pesanan per baris yang diletakkan rapi di bawah tabel
                     st.markdown("#### ❌ Kelola / Hapus Item Pesanan Satuan:")
                     for row_item in table_rows:
                         col_txt, col_btn = st.columns([6, 1])
@@ -570,7 +568,6 @@ if is_admin:
                                 conn.commit()
                                 st.rerun()
 
-                    # Bagian Pengaturan Status Lunas per Nama
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
                     unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
@@ -646,4 +643,3 @@ if is_admin:
                 cursor.execute("INSERT INTO active_menu (tanggal, menu_id, deadline_time) VALUES (?, ?, ?)", (str(admin_tgl), m_id, deadline_str))
             conn.commit()
             st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl}!")
-```[cite: 1]
