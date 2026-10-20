@@ -19,11 +19,11 @@ def init_gspread():
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    # Membaca credentials dari st.secrets Streamlit Cloud
     creds_dict = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("Database Jajan Surya")
+    # Disesuaikan dengan nama file Google Spreadsheet kamu
+    spreadsheet = client.open("Database_Jastiprsur")
     return spreadsheet
 
 try:
@@ -32,7 +32,7 @@ try:
     sheet_active_menu = sh.worksheet("active_menu")
     sheet_payment = sh.worksheet("payment_status")
 except Exception as e:
-    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan secrets 'gcp_service_account' sudah diatur di Streamlit Cloud dan Google Sheet sudah di-share! Error: {e}")
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan nama file 'Database_Jastiprsur' dan tab ('orders', 'active_menu', 'payment_status') sudah benar! Error: {e}")
     st.stop()
 
 # --- INISIALISASI SESSION STATE ---
@@ -500,7 +500,6 @@ if is_admin:
 
                 st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                 
-                # Header Tabel Rapi & Simpel
                 header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
                 header_cols[0].markdown("**No**")
                 header_cols[1].markdown("**Pemesan**")
@@ -543,7 +542,6 @@ if is_admin:
                         row_cols[0].write(display_no)
                         row_cols[1].write(display_nama)
                         
-                        # Status Lunas langsung di baris pemesan pertama
                         if idx == 0:
                             with row_cols[2]:
                                 ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
@@ -572,7 +570,6 @@ if is_admin:
                         row_cols[7].write(m_item["catatan"])
                         row_cols[8].write(subtotal_text)
                         
-                        # Tombol Hapus (X) langsung di ujung kanan baris menu
                         with row_cols[9]:
                             if st.button("❌", key=f"del_btn_{m_item['id']}"):
                                 cell = sheet_orders.find(str(m_item['id']))
