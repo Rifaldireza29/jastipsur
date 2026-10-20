@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 import sqlite3
 import streamlit.components.v1 as components
+import pandas as pd
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -504,7 +505,7 @@ if is_admin:
 
                 total_biaya_tgl = 0
 
-                st.markdown("#### 👥 Tabel Rincian Pesanan & Status Pembayaran Pemesan:")
+                st.markdown("#### 👥 Rincian Pesanan & Status Pembayaran Pemesan:")
                 
                 for nama, items in grouped_by_person.items():
                     subtotal_orang = 0
@@ -515,7 +516,7 @@ if is_admin:
                     p_status = cursor.fetchone()
                     is_currently_lunas = True if p_status and p_status[0] == 1 else False
 
-                    # Header per orang dengan Checkbox Lunas
+                    # Header per orang dengan Checkbox Lunas di sebelah kiri nama
                     col_chk, col_info = st.columns([1, 5])
                     with col_chk:
                         new_lunas_status = st.checkbox(f"Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
@@ -531,40 +532,23 @@ if is_admin:
                         status_badge = "✅ **LUNAS**" if new_lunas_status else "⏳ **BELUM LUNAS**"
                         st.markdown(f"👤 **{nama}** — Total Belanja: **Rp {subtotal_orang:,}** | Status: {status_badge}")
 
-                    # Menyiapkan data untuk ditampilkan dalam bentuk tabel rapi (DataFrame)
-                    table_data = []
+                    # Menampilkan daftar menu dalam bentuk baris sejajar dengan tombol hapus di sebelah kanan
                     for ord_data in items:
                         sub_harga = ord_data["harga"] * ord_data["qty"]
-                        table_data.append({
-                            "Menu / Item": ord_data["nama_menu"],
-                            "Qty": ord_data["qty"],
-                            "Level": ord_data["level"],
-                            "Catatan": ord_data["catatan"],
-                            "Subtotal": f"Rp {sub_harga:,}",
-                            "ID": ord_data["id"] # Disimpan untuk acuan hapus
-                        })
-
-                    # Menampilkan tabel menggunakan st.dataframe agar mirip excel dan tidak bikin pusing
-                    if table_data:
-                        # Membuat format tabel bersih tanpa kolom ID di tampilan utama
-                        import pandas as pd
-                        df_pesanan = pd.DataFrame(table_data)
                         
-                        # Tampilkan tabel rapi
-                        st.dataframe(
-                            df_pesanan[["Menu / Item", "Qty", "Level", "Catatan", "Subtotal"]],
-                            use_container_width=True,
-                            hide_index=True
-                        )
-
-                        # Tombol hapus item per baris pesanan
-                        cols_del = st.columns(len(table_data))
-                        for idx, row_item in enumerate(table_data):
-                            with st.container():
-                                if st.button(f"❌ Hapus [{row_item['Menu / Item']} - {nama}]", key=f"del_db_item_{row_item['ID']}"):
-                                    cursor.execute("DELETE FROM orders WHERE id = ?", (row_item['ID'],))
-                                    conn.commit()
-                                    st.rerun()
+                        # Kolom kiri untuk detail pesanan, kolom kanan untuk tombol hapus di ujung
+                        col_det, col_del_btn = st.columns([6, 1])
+                        with col_det:
+                            if ord_data["nama_menu"] == "Biaya Jastip":
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,} *( {ord_data['catatan']} )*")
+                            else:
+                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
+                        
+                        with col_del_btn:
+                            if st.button("❌ Hapus", key=f"del_db_item_{ord_data['id']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
+                                conn.commit()
+                                st.rerun()
 
                     st.markdown("---")
                     total_biaya_tgl += subtotal_orang
