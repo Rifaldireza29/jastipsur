@@ -496,64 +496,74 @@ if is_admin:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
                 orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
                 
-                grouped_by_person = {}
-                for ord_data in orders_on_date:
-                    nama = ord_data["nama_pemesan"]
-                    if nama not in grouped_by_person:
-                        grouped_by_person[nama] = []
-                    grouped_by_person[nama].append(ord_data)
-
+                # Menyiapkan data gabungan seluruh pemesan dalam satu tabel master per tanggal
+                table_data = []
                 total_biaya_tgl = 0
 
-                st.markdown("#### 👥 Rincian Pesanan & Status Pembayaran Pemesan:")
-                
-                for nama, items in grouped_by_person.items():
-                    subtotal_orang = 0
-                    for ord_data in items:
-                        subtotal_orang += ord_data["harga"] * ord_data["qty"]
-
-                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
+                for ord_data in orders_on_date:
+                    sub_harga = ord_data["harga"] * ord_data["qty"]
+                    total_biaya_tgl += sub_harga
+                    
+                    # Cek status lunas pemesan untuk tanggal ini
+                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, ord_data["nama_pemesan"]))
                     p_status = cursor.fetchone()
-                    is_currently_lunas = True if p_status and p_status[0] == 1 else False
+                    status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
 
-                    # Header per orang dengan Checkbox Lunas di sebelah kiri nama
-                    col_chk, col_info = st.columns([1, 5])
-                    with col_chk:
-                        new_lunas_status = st.checkbox(f"Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
-                        if new_lunas_status != is_currently_lunas:
-                            if new_lunas_status:
-                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, 1)", (tgl, nama))
-                            else:
-                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, 0)", (tgl, nama))
-                            conn.commit()
-                            st.rerun()
+                    table_data.append({
+                        "Pemesan": ord_data["nama_pemesan"],
+                        "Status Bayar": status_lunas_str,
+                        "Menu / Item": ord_data["nama_menu"],
+                        "Qty": ord_data["qty"],
+                        "Level": ord_data["level"],
+                        "Catatan": ord_data["catatan"],
+                        "Subtotal": f"Rp {sub_harga:,}",
+                        "ID": ord_data["ID"] if "ID" in ord_data else ord_data["id"]
+                    })
 
-                    with col_info:
-                        status_badge = "✅ **LUNAS**" if new_lunas_status else "⏳ **BELUM LUNAS**"
-                        st.markdown(f"👤 **{nama}** — Total Belanja: **Rp {subtotal_orang:,}** | Status: {status_badge}")
+                if table_data:
+                    df_pesanan = pd.DataFrame(table_data)
+                    
+                    st.markdown("#### 📋 Tabel Master Semua Pesanan:")
+                    st.dataframe(
+                        df_pesanan[["Pemesan", "Status Bayar", "Menu / Item", "Qty", "Level", "Catatan", "Subtotal"]],
+                        use_container_width=True,
+                        hide_index=True
+                    )
 
-                    # Menampilkan daftar menu dalam bentuk baris sejajar dengan tombol hapus di sebelah kanan
-                    for ord_data in items:
-                        sub_harga = ord_data["harga"] * ord_data["qty"]
-                        
-                        # Kolom kiri untuk detail pesanan, kolom kanan untuk tombol hapus di ujung
-                        col_det, col_del_btn = st.columns([6, 1])
-                        with col_det:
-                            if ord_data["nama_menu"] == "Biaya Jastip":
-                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **Biaya Jastip** — Rp {sub_harga:,} *( {ord_data['catatan']} )*")
-                            else:
-                                st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;• **{ord_data['nama_menu']}** ({ord_data['qty']}x) | Level: {ord_data['level']} | Catatan: {ord_data['catatan']} — **Rp {sub_harga:,}**")
-                        
-                        with col_del_btn:
-                            if st.button("❌ Hapus", key=f"del_db_item_{ord_data['id']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (ord_data['id'],))
+                    # Bagian Pengaturan Status Lunas per Nama & Tombol Hapus per Item
+                    st.markdown("#### ⚙️ Aksi & Status Pembayaran per Pemesan:")
+                    unique_pemesan_tgl = sorted(list(set(d["Pemesan"] for d in table_data)))
+                    
+                    for p_nama in unique_pemesan_tgl:
+                        cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
+                        p_res = cursor.fetchone()
+                        is_lunas_val = True if p_res and p_res[0] == 1 else False
+
+                        c_lunas, c_nama_p = st.columns([1, 4])
+                        with c_lunas:
+                            ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
+                            if ubah_lunas != is_lunas_val:
+                                val_to_set = 1 if ubah_lunas else 0
+                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
+                                conn.commit()
+                                st.rerun()
+                        with c_nama_p:
+                            badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
+                            st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
+
+                    st.markdown("---")
+                    st.markdown("#### ❌ Hapus Item Pesanan Satuan:")
+                    for row_item in table_data:
+                        col_txt, col_btn = st.columns([5, 1])
+                        with col_txt:
+                            st.write(f"• **{row_item['Pemesan']}** memesan **{row_item['Menu / Item']}** ({row_item['Qty']}x) — {row_item['Subtotal']}")
+                        with col_btn:
+                            if st.button("Hapus", key=f"master_del_{row_item['ID']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (row_item['ID'],))
                                 conn.commit()
                                 st.rerun()
 
-                    st.markdown("---")
-                    total_biaya_tgl += subtotal_orang
-                
-                st.markdown(f"**💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}**")
+                st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}")
                 
                 st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
                 
