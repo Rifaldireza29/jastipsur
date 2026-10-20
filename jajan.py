@@ -12,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SETUP KONEKSI GOOGLE SHEETS VIA STREAMLIT SECRETS ---
+# --- SETUP KONEKSI GOOGLE SHEETS (HANYA 1 SHEET: 'orders') ---
 @st.cache_resource
 def init_gspread():
     scope = [
@@ -27,23 +27,16 @@ def init_gspread():
 
 try:
     sh = init_gspread()
+    # Cuma pakai 1 sheet saja untuk semuanya
     sheet_orders = sh.worksheet("orders")
-    sheet_active_menu = sh.worksheet("active_menu")
-    sheet_payment = sh.worksheet("payment_status")
 except Exception as e:
-    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan ketiga tab sudah ada! Error: {e}")
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan tab 'orders' sudah ada! Error: {e}")
     st.stop()
 
-# --- FUNGSI CACHE DATA UNTUK MENCEGAH ERROR 429 (QUOTA EXCEEDED) ---
-@st.cache_data(ttl=5)
-def get_cached_records(sheet_type):
-    if sheet_type == "orders":
-        return sheet_orders.get_all_records()
-    elif sheet_type == "active_menu":
-        return sheet_active_menu.get_all_records()
-    elif sheet_type == "payment_status":
-        return sheet_payment.get_all_records()
-    return []
+# --- FUNGSI CACHE DATA RECORDS (TTL 10 Detik) ---
+@st.cache_data(ttl=10)
+def get_cached_orders():
+    return sheet_orders.get_all_records()
 
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
@@ -53,166 +46,48 @@ if "show_payment_popup" not in st.session_state:
 
 # Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z)
 MENU_JAJANAN = [
+    {"id": 8, "nama": "Basreng", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "baso goyeng."},
+    {"id": 17, "nama": "Bola Bola Ayam", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "Bola-bola ayam gurih lezat."},
+    {"id": 12, "nama": "Cibay", "tipe_menu": "normal", "pilihan_harga": [5000], "deskripsi": "Aci ngambay endul."},
+    {"id": 4, "nama": "Cilor", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "Cilor dekat mizan yang endul."},
+    {"id": 18, "nama": "Cilok", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "Cilok kenyal bumbu nikmat."},
     {
-        "id": 8, 
-        "nama": "Basreng", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "baso goyeng."
-    },
-    {
-        "id": 17, 
-        "nama": "Bola Bola Ayam", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Bola-bola ayam gurih lezat."
-    },
-    {
-        "id": 12, 
-        "nama": "Cibay", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000], 
-        "deskripsi": "Aci ngambay endul."
-    },
-    {
-        "id": 4, 
-        "nama": "Cilor", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Cilor dekat mizan yang endul."
-    },
-    {
-        "id": 18, 
-        "nama": "Cilok", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Cilok kenyal bumbu nikmat."
-    },
-    {
-        "id": 7, 
-        "nama": "Cireng ayam", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Cireng Ayam Ori", "harga": 2500},
-            {"nama": "Cireng Ayam Pedas", "harga": 2500},
-            {"nama": "Cireng Ayam Keju", "harga": 2500}
-        ],
+        "id": 7, "nama": "Cireng ayam", "tipe_menu": "varian", 
+        "varian": [{"nama": "Cireng Ayam Ori", "harga": 2500}, {"nama": "Cireng Ayam Pedas", "harga": 2500}, {"nama": "Cireng Ayam Keju", "harga": 2500}],
         "deskripsi": "hireng hanas aneka rasa."
     },
     {
-        "id": 3, 
-        "nama": "Dimsum", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Dimsum Ayam (Porsi 5rb)", "harga": 5000},
-            {"nama": "Dimsum Ayam (Porsi 10rb)", "harga": 10000},
-            {"nama": "Dimsum Campur (Porsi 5rb)", "harga": 5000},
-            {"nama": "Dimsum Campur (Porsi 10rb)", "harga": 10000}
-        ],
+        "id": 3, "nama": "Dimsum", "tipe_menu": "varian", 
+        "varian": [{"nama": "Dimsum Ayam (Porsi 5rb)", "harga": 5000}, {"nama": "Dimsum Ayam (Porsi 10rb)", "harga": 10000}, {"nama": "Dimsum Campur (Porsi 5rb)", "harga": 5000}, {"nama": "Dimsum Campur (Porsi 10rb)", "harga": 10000}],
         "deskripsi": "dimsum ayam & campur aduk dijamin enak."
     },
+    {"id": 1, "nama": "Jambu Krisjon", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "Jambu kristal panghegar yang manis ituh."},
+    {"id": 13, "nama": "Kentang Goreng", "tipe_menu": "normal", "pilihan_harga": [5000], "deskripsi": "French fries crispy."},
+    {"id": 6, "nama": "Kwetiaw", "tipe_menu": "normal", "pilihan_harga": [10000], "deskripsi": "kwetiau harga pasar rasa restoran."},
     {
-        "id": 1, 
-        "nama": "Jambu Krisjon", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "Jambu kristal panghegar yang manis ituh."
-    },
-    {
-        "id": 13, 
-        "nama": "Kentang Goreng", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000], 
-        "deskripsi": "French fries crispy."
-    },
-    {
-        "id": 6, 
-        "nama": "Kwetiaw", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [10000], 
-        "deskripsi": "kwetiau harga pasar rasa restoran."
-    },
-    {
-        "id": 9, 
-        "nama": "Martabak Mini", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Pisang", "harga": 2500},
-            {"nama": "Coklat", "harga": 2500},
-            {"nama": "Keju", "harga": 3000},
-            {"nama": "Pisang-Coklat", "harga": 3000},
-            {"nama": "Pisang-Keju", "harga": 3000}
-        ],
+        "id": 9, "nama": "Martabak Mini", "tipe_menu": "varian", 
+        "varian": [{"nama": "Pisang", "harga": 2500}, {"nama": "Coklat", "harga": 2500}, {"nama": "Keju", "harga": 3000}, {"nama": "Pisang-Coklat", "harga": 3000}, {"nama": "Pisang-Keju", "harga": 3000}],
         "deskripsi": "Martabak mini manis aneka topping."
     },
+    {"id": 16, "nama": "Mie Goreng Ayam Penyet", "tipe_menu": "normal", "pilihan_harga": [15000], "deskripsi": "Mie goreng dipadu ayam penyet gurih."},
+    {"id": 14, "nama": "Nasi Goreng", "tipe_menu": "normal", "pilihan_harga": [12000], "deskripsi": "Nasi goreng mantap."},
+    {"id": 15, "nama": "Paket Komplit Ayam Penyet + Nasi", "tipe_menu": "normal", "pilihan_harga": [15000], "deskripsi": "Ayam penyet komplit dengan nasi hangat."},
     {
-        "id": 16, 
-        "nama": "Mie Goreng Ayam Penyet", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [15000], 
-        "deskripsi": "Mie goreng dipadu ayam penyet gurih."
-    },
-    {
-        "id": 14, 
-        "nama": "Nasi Goreng", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [12000], 
-        "deskripsi": "Nasi goreng mantap."
-    },
-    {
-        "id": 15, 
-        "nama": "Paket Komplit Ayam Penyet + Nasi", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [15000], 
-        "deskripsi": "Ayam penyet komplit dengan nasi hangat."
-    },
-    {
-        "id": 10, 
-        "nama": "Pangsit Ayam", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Saos Bolognese Chilli Oil", "harga": 10000},
-            {"nama": "Saos Keju Chilli Oil", "harga": 10000}
-        ],
+        "id": 10, "nama": "Pangsit Ayam", "tipe_menu": "varian", 
+        "varian": [{"nama": "Saos Bolognese Chilli Oil", "harga": 10000}, {"nama": "Saos Keju Chilli Oil", "harga": 10000}],
         "deskripsi": "Pangsit ayam gurih pedas nikmat."
     },
     {
-        "id": 11, 
-        "nama": "Risol Asin", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Mayo Ori", "harga": 3500},
-            {"nama": "Mayo Pedas", "harga": 3500},
-            {"nama": "Ayam Ori", "harga": 3500},
-            {"nama": "Ayam Pedas", "harga": 3500},
-            {"nama": "Coklat", "harga": 4000},
-            {"nama": "Matcha", "harga": 4000}
-        ],
+        "id": 11, "nama": "Risol Asin", "tipe_menu": "varian", 
+        "varian": [{"nama": "Mayo Ori", "harga": 3500}, {"nama": "Mayo Pedas", "harga": 3500}, {"nama": "Ayam Ori", "harga": 3500}, {"nama": "Ayam Pedas", "harga": 3500}, {"nama": "Coklat", "harga": 4000}, {"nama": "Matcha", "harga": 4000}],
         "deskripsi": "Risol aneka rasa asin & manis."
     },
     {
-        "id": 2, 
-        "nama": "Roti bakar yomart", 
-        "tipe_menu": "varian", 
-        "varian": [
-            {"nama": "Coklat", "harga": 7000},
-            {"nama": "Strawberry", "harga": 7000},
-            {"nama": "Keju", "harga": 7000},
-            {"nama": "Blueberry", "harga": 7000},
-            {"nama": "Kacang", "harga": 7000},
-            {"nama": "Coklat-Keju", "harga": 9500},
-            {"nama": "Coklat-Kacang", "harga": 8500},
-            {"nama": "Kacang-Strawberry", "harga": 8500}
-        ],
+        "id": 2, "nama": "Roti bakar yomart", "tipe_menu": "varian", 
+        "varian": [{"nama": "Coklat", "harga": 7000}, {"nama": "Strawberry", "harga": 7000}, {"nama": "Keju", "harga": 7000}, {"nama": "Blueberry", "harga": 7000}, {"nama": "Kacang", "harga": 7000}, {"nama": "Coklat-Keju", "harga": 9500}, {"nama": "Coklat-Kacang", "harga": 8500}, {"nama": "Kacang-Strawberry", "harga": 8500}],
         "deskripsi": "roti bakar yomart tea nu endul."
     },
-    {
-        "id": 5, 
-        "nama": "Usus crispy", 
-        "tipe_menu": "normal", 
-        "pilihan_harga": [5000, 10000], 
-        "deskripsi": "usus kabeuki gerri trusted enak banget."
-    }
+    {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
 # Header Aplikasi
@@ -255,122 +130,62 @@ with tab_form:
         tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today(), key="member_tgl")
 
     st.markdown("---")
-    st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
+    st.markdown(f"### 2. 🛒 Pilih Menu untuk Tanggal: {tanggal_jajan}")
 
-    active_rows_raw = get_cached_records("active_menu")
-    active_menu_ids = []
-    deadline_str = None
-    
-    for r in active_rows_raw:
-        if str(r.get("tanggal")) == str(tanggal_jajan):
-            try:
-                active_menu_ids.append(int(r.get("menu_id")))
-            except:
-                pass
-            if r.get("deadline_time"):
-                deadline_str = str(r.get("deadline_time"))
+    # Ambil data dari 1 sheet saja ('orders')
+    try:
+        all_data_raw = get_cached_orders()
+    except:
+        all_data_raw = []
 
-    WIB = datetime.timezone(datetime.timedelta(hours=7))
-    now_wib = datetime.datetime.now(WIB)
+    # Filter menu aktif atau ambil semua menu jika admin, atau tampilkan semua menu default agar member tetap bisa pesan tanpa ribet setting active_menu terpisah
+    available_menu = MENU_JAJANAN 
 
-    is_expired = False
-    if deadline_str:
-        try:
-            target_dt = datetime.datetime.combine(
-                tanggal_jajan, 
-                datetime.datetime.strptime(deadline_str, "%H:%M").time()
-            ).replace(tzinfo=WIB)
-            
-            if now_wib > target_dt:
-                is_expired = True
-        except:
-            pass
+    menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
+    selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
 
-    if deadline_str and not is_expired:
-        target_datetime_str = f"{tanggal_jajan}T{deadline_str}:00"
-        timer_code = """
-        <div style="background-color: #ff4b4b; padding: 12px; border-radius: 8px; color: white; text-align: center; font-family: sans-serif; font-weight: bold; margin-bottom: 15px;">
-            ⏳ Sisa Waktu Pemesanan: <span id="live-timer" style="font-size: 1.2em; background: rgba(0,0,0,0.2); padding: 2px 8px; border-radius: 4px;">Memuat...</span>
-        </div>
-        <script>
-            var targetDate = new Date("TARGET_DATE_PLACEHOLDER").getTime();
-            var x = setInterval(function() {
-                var now = new Date().getTime();
-                var distance = targetDate - now;
-                
-                if (distance < 0) {
-                    clearInterval(x);
-                    document.getElementById("live-timer").innerHTML = "WAKTU HABIS!";
-                    window.location.reload();
-                } else {
-                    var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                    var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                    var seconds = Math.floor((distance % (1000 * 60)) / 1000);
-                    document.getElementById("live-timer").innerHTML = hours + " jam " + minutes + " menit " + seconds + " detik lagi";
-                }
-            }, 1000);
-        </script>
-        """.replace("TARGET_DATE_PLACEHOLDER", target_datetime_str)
-        components.html(timer_code, height=65)
+    selected_idx = menu_options.index(selected_menu_str)
+    item_terpilih = available_menu[selected_idx]
 
-    available_menu = [item for item in MENU_JAJANAN if item["id"] in active_menu_ids]
-
-    if not available_menu:
-        st.warning(f"🚫 Belum ada menu yang dibuka oleh Admin untuk tanggal **{tanggal_jajan}**. Coba pilih tanggal lain atau buka menu melalui Panel Kontrol Admin ya!")
-    elif is_expired and not is_admin:
-        st.error(f"⌛ **Waktu Pemesanan Telah Habis!** Batas waktu pengisian untuk tanggal {tanggal_jajan} pukul {deadline_str} WIB sudah terlewati. Form pemesanan dikunci mutlak.")
+    if item_terpilih["tipe_menu"] == "varian":
+        pilihan_varian = st.selectbox(
+            "Pilih Varian Rasa / Jenis:", 
+            item_terpilih["varian"], 
+            format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
+        )
+        nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
+        harga_final = pilihan_varian["harga"]
     else:
-        if is_expired and is_admin:
-            st.warning(f"⚠️ **Perhatian Admin:** Waktu pemesanan tanggal {tanggal_jajan} (Deadline: {deadline_str} WIB) sudah lewat, tapi Anda dalam mode Admin sehingga tetap bisa mengakses form.")
-
-        menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
-        selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
-
-        selected_idx = menu_options.index(selected_menu_str)
-        item_terpilih = available_menu[selected_idx]
-
-        if item_terpilih["tipe_menu"] == "varian":
-            pilihan_varian = st.selectbox(
-                "Pilih Varian Rasa / Jenis:", 
-                item_terpilih["varian"], 
-                format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
+        if len(item_terpilih["pilihan_harga"]) > 1:
+            pilihan_harga_pilih = st.radio(
+                "Pilih Varian Harga:", 
+                item_terpilih["pilihan_harga"], 
+                format_func=lambda x: f"Rp {x:,}"
             )
-            nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
-            harga_final = pilihan_varian["harga"]
         else:
-            if len(item_terpilih["pilihan_harga"]) > 1:
-                pilihan_harga_pilih = st.radio(
-                    "Pilih Varian Harga:", 
-                    item_terpilih["pilihan_harga"], 
-                    format_func=lambda x: f"Rp {x:,}"
-                )
-            else:
-                pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
-                st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
-            
-            nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
-            harga_final = pilihan_harga_pilih
+            pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
+            st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
+        
+        nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
+        harga_final = pilihan_harga_pilih
 
-        col_qty, col_level = st.columns(2)
-        with col_qty:
-            jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
-        with col_level:
-            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
+    col_qty, col_level = st.columns(2)
+    with col_qty:
+        jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
+    with col_level:
+        level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
 
-        catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
+    catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
-        if st.button("➕ Tambah ke Daftar Pesanan Saya"):
-            if is_expired and not is_admin:
-                st.error("Waktu pemesanan sudah habis, tidak dapat menambah pesanan!")
-            else:
-                st.session_state.current_cart.append({
-                    "nama_menu": nama_pesanan_final,
-                    "harga": harga_final,
-                    "qty": jumlah_pesan,
-                    "level": level_pedas,
-                    "catatan": catatan_item if catatan_item else "-"
-                })
-                st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
+    if st.button("➕ Tambah ke Daftar Pesanan Saya"):
+        st.session_state.current_cart.append({
+            "nama_menu": nama_pesanan_final,
+            "harga": harga_final,
+            "qty": jumlah_pesan,
+            "level": level_pedas,
+            "catatan": catatan_item if catatan_item else "-"
+        })
+        st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
 
     st.markdown("---")
     st.markdown("### 🧾 Preview Pesanan Kamu")
@@ -398,18 +213,13 @@ with tab_form:
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
-            if is_expired and not is_admin:
-                st.error("Waktu pemesanan sudah habis, tidak dapat menyimpan pesanan!")
-            elif not nama_pemesan:
+            if not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
-                try:
-                    all_orders_data = get_cached_records("orders")
-                except:
-                    all_orders_data = []
-                new_id = len(all_orders_data) + 1
+                new_id = len(all_data_raw) + 1
 
                 for cart_item in st.session_state.current_cart:
+                    # Kolom di Google Sheet: id, tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan, status_lunas
                     sheet_orders.append_row([
                         new_id,
                         str(tanggal_jajan),
@@ -418,7 +228,8 @@ with tab_form:
                         int(cart_item["harga"]),
                         int(cart_item["qty"]),
                         cart_item["level"],
-                        cart_item["catatan"]
+                        cart_item["catatan"],
+                        "Belum Lunas" # Status pembayaran langsung di baris yang sama!
                     ])
                     new_id += 1
 
@@ -430,7 +241,8 @@ with tab_form:
                     int(biaya_jastip),
                     1,
                     "-",
-                    ""
+                    "",
+                    "Belum Lunas"
                 ])
 
                 st.session_state.last_total_pay = total_biaya_akhir
@@ -473,7 +285,7 @@ if is_admin:
                 st.rerun()
         
         try:
-            orders_data_raw = get_cached_records("orders")
+            orders_data_raw = get_cached_orders()
         except:
             orders_data_raw = []
         
@@ -482,9 +294,7 @@ if is_admin:
         else:
             if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
                 sheet_orders.clear()
-                sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
-                sheet_payment.clear()
-                sheet_payment.append_row(["tanggal", "nama_pemesan", "is_lunas"])
+                sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
                 st.cache_data.clear()
                 st.rerun()
 
@@ -502,17 +312,13 @@ if is_admin:
                             "harga": int(r.get("harga", 0)),
                             "qty": int(r.get("qty", 0)),
                             "level": str(r.get("level", "")),
-                            "catatan": str(r.get("catatan", ""))
+                            "catatan": str(r.get("catatan", "")),
+                            "status_lunas": str(r.get("status_lunas", "Belum Lunas"))
                         })
                     except:
                         pass
 
             unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
-
-            try:
-                payment_rows_raw = get_cached_records("payment_status")
-            except:
-                payment_rows_raw = []
 
             for tgl in unique_dates:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
@@ -550,11 +356,8 @@ if is_admin:
                     subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                     total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                    is_currently_lunas = False
-                    for pr in payment_rows_raw:
-                        if str(pr.get("tanggal")) == str(tgl) and str(pr.get("nama_pemesan")) == str(nama):
-                            if int(pr.get("is_lunas", 0)) == 1:
-                                is_currently_lunas = True
+                    # Cek status lunas dari item pertama orang tersebut
+                    is_currently_lunas = items[0]["status_lunas"] == "Lunas" if items else False
 
                     for idx, m_item in enumerate(menu_items):
                         harga_satuan_str = f"Rp {m_item['harga']:,}"
@@ -576,19 +379,13 @@ if is_admin:
                             with row_cols[2]:
                                 ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
                                 if ubah_lunas != is_currently_lunas:
-                                    val_to_set = 1 if ubah_lunas else 0
-                                    found_pay = False
-                                    cell_row = None
-                                    for idx_p, pr in enumerate(payment_rows_raw):
-                                        if str(pr.get("tanggal")) == str(tgl) and str(pr.get("nama_pemesan")) == str(nama):
-                                            found_pay = True
-                                            cell_row = idx_p + 2
-                                            break
-                                    
-                                    if found_pay and cell_row:
-                                        sheet_payment.update_cell(cell_row, 3, val_to_set)
-                                    else:
-                                        sheet_payment.append_row([str(tgl), str(nama), val_to_set])
+                                    status_str = "Lunas" if ubah_lunas else "Belum Lunas"
+                                    # Update status lunas di semua baris milik orang tersebut pada tanggal tersebut
+                                    for item_grup in items:
+                                        cell = sheet_orders.find(str(item_grup['id']))
+                                        if cell:
+                                            # Kolom ke-9 adalah status_lunas
+                                            sheet_orders.update_cell(cell.row, 9, status_str)
                                     st.cache_data.clear()
                                     st.rerun()
                         else:
@@ -642,38 +439,6 @@ if is_admin:
 
     # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
     with tab_admin_menu:
-        st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian & Deadline)")
-        
-        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
-        admin_deadline = st.time_input("Tentukan Batas Waktu (Jam Penutupan Pesanan):", value=datetime.time(10, 0), key="admin_deadline_time")
-        
-        st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
-        st.write("Silakan centang menu apa saja yang **dibuka**:")
-        
-        try:
-            active_menu_raw = get_cached_records("active_menu")
-        except:
-            active_menu_raw = []
-
-        active_ids = [int(row["menu_id"]) for row in active_menu_raw if str(row.get("tanggal")) == str(admin_tgl) and str(row.get("menu_id", "")) != ""]
-        
-        selected_menu_ids = []
-        for item in MENU_JAJANAN:
-            is_checked = item["id"] in active_ids
-            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
-            if check:
-                selected_menu_ids.append(item["id"])
-                
-        if st.button("💾 Simpan Perubahan Menu & Batas Waktu"):
-            cell_list = sheet_active_menu.findall(str(admin_tgl))
-            row_indices_to_delete = sorted([c.row for c in cell_list], reverse=True)
-            for r_idx in row_indices_to_delete:
-                sheet_active_menu.delete_rows(r_idx)
-
-            deadline_str = admin_deadline.strftime("%H:%M")
-            for m_id in selected_menu_ids:
-                sheet_active_menu.append_row([str(admin_tgl), int(m_id), str(deadline_str)])
-
-            st.cache_data.clear()
-            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl} ke Google Sheets!")
-            st.rerun()
+        st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu)")
+        st.info("💡 Karena menggunakan 1 sheet tunggal, semua menu jajanan di atas sudah langsung terbuka secara otomatis untuk dipilih oleh member tanpa perlu setup rumit.")
+        st.write("Semua pesanan yang masuk akan otomatis tercatat rapi di Google Sheet `Database_Jastipsur` pada tab tunggal **`orders`**.")
