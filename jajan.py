@@ -387,7 +387,7 @@ with tab_form:
         total_biaya_akhir = subtotal_menu + biaya_jastip
 
         st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
-        st.markdown(f"Biaya Jastip: Rp {biaya_jastip:,}")
+        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
@@ -496,7 +496,6 @@ if is_admin:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
                 orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
                 
-                # Kelompokkan pesanan per pemesan, dan pisahkan item makanan dengan biaya jastip
                 grouped_by_person = {}
                 for ord_data in orders_on_date:
                     nama = ord_data["nama_pemesan"]
@@ -509,28 +508,24 @@ if is_admin:
                 no_urut = 1
 
                 for nama, items in grouped_by_person.items():
-                    # Ambil hanya item makanan (abaikan baris Biaya Jastip mentah dari DB)
                     menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
                     
-                    # Hitung total belanja orang tersebut (makanan + jastip Rp 1.000)
                     subtotal_murni_makanan = sum([i["harga"] * i["qty"] for i in menu_items])
                     subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                     total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                    # Cek status lunas
                     cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
                     p_status = cursor.fetchone()
                     status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
 
                     for idx, m_item in enumerate(menu_items):
                         m_sub = m_item["harga"] * m_item["qty"]
+                        harga_satuan_str = f"Rp {m_item['harga']:,}"
                         
-                        # Nomor urut & nama pemesan hanya muncul di baris pertama milik orang tersebut
                         display_no = no_urut if idx == 0 else ""
                         display_nama = nama if idx == 0 else ""
                         display_status = status_lunas_str if idx == 0 else ""
                         
-                        # Jika ini adalah baris terakhir dari pemesan tersebut, masukkan subtotal plus jastip
                         is_last_item = (idx == len(menu_items) - 1)
                         if is_last_item:
                             subtotal_text = f"Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk biaya jastip 1000)"
@@ -542,6 +537,7 @@ if is_admin:
                             "Pemesan": display_nama,
                             "Status Bayar": display_status,
                             "Menu / Item": m_item["nama_menu"],
+                            "Harga Satuan": harga_satuan_str,
                             "Qty": m_item["qty"],
                             "Level": m_item["level"],
                             "Catatan": m_item["catatan"],
@@ -556,7 +552,7 @@ if is_admin:
                     
                     st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                     st.dataframe(
-                        df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Qty", "Level", "Catatan", "Subtotal"]],
+                        df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Harga Satuan", "Qty", "Level", "Catatan", "Subtotal"]],
                         use_container_width=True,
                         hide_index=True
                     )
