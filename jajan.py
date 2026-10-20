@@ -2,7 +2,6 @@ import streamlit as st
 import datetime
 import sqlite3
 import streamlit.components.v1 as components
-import pandas as pd
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -508,7 +507,20 @@ if is_admin:
 
                 st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                 
-                table_rows = []
+                # Header Tabel Manual dengan Tombol Hapus "X" di Ujung Kanan
+                header_cols = st.columns([0.5, 1.5, 1.5, 2.2, 1.2, 0.5, 1.2, 2.0, 2.2, 0.6])
+                header_cols[0].markdown("**No**")
+                header_cols[1].markdown("**Pemesan**")
+                header_cols[2].markdown("**Status**")
+                header_cols[3].markdown("**Menu / Item**")
+                header_cols[4].markdown("**Harga**")
+                header_cols[5].markdown("**Qty**")
+                header_cols[6].markdown("**Level**")
+                header_cols[7].markdown("**Catatan**")
+                header_cols[8].markdown("**Subtotal**")
+                header_cols[9].markdown("**❌**")
+                st.markdown("<hr style='margin: 4px 0px;'>", unsafe_allow_html=True)
+
                 for nama, items in grouped_by_person.items():
                     menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
                     
@@ -518,75 +530,64 @@ if is_admin:
 
                     cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
                     p_status = cursor.fetchone()
-                    status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
+                    is_currently_lunas = True if p_status and p_status[0] == 1 else False
 
                     for idx, m_item in enumerate(menu_items):
                         harga_satuan_str = f"Rp {m_item['harga']:,}"
                         
-                        display_no = no_urut if idx == 0 else ""
+                        display_no = str(no_urut) if idx == 0 else ""
                         display_nama = nama if idx == 0 else ""
-                        display_status = status_lunas_str if idx == 0 else ""
+                        
+                        status_badge = "LUNAS ✅" if is_currently_lunas else "BELUM LUNAS ⏳"
+                        display_status = status_badge if idx == 0 else ""
                         
                         is_last_item = (idx == len(menu_items) - 1)
                         if is_last_item:
                             subtotal_text = f"Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk jastip)"
                         else:
-                            subtotal_text = ""  # Kosongkan subtotal untuk item selain item terakhir per pemesan
+                            subtotal_text = ""
 
-                        table_rows.append({
-                            "No": display_no,
-                            "Pemesan": display_nama,
-                            "Status Bayar": display_status,
-                            "Menu / Item": m_item["nama_menu"],
-                            "Harga Satuan": harga_satuan_str,
-                            "Qty": m_item["qty"],
-                            "Level": m_item["level"],
-                            "Catatan": m_item["catatan"],
-                            "Subtotal": subtotal_text,
-                            "ID": m_item["id"]
-                        })
+                        row_cols = st.columns([0.5, 1.5, 1.5, 2.2, 1.2, 0.5, 1.2, 2.0, 2.2, 0.6])
+                        row_cols[0].write(display_no)
+                        row_cols[1].write(display_nama)
+                        row_cols[2].write(display_status)
+                        row_cols[3].write(m_item["nama_menu"])
+                        row_cols[4].write(harga_satuan_str)
+                        row_cols[5].write(str(m_item["qty"]))
+                        row_cols[6].write(m_item["level"])
+                        row_cols[7].write(m_item["catatan"])
+                        row_cols[8].write(subtotal_text)
+                        
+                        with row_cols[9]:
+                            if st.button("❌", key=f"tbl_del_{m_item['id']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (m_item['id'],))
+                                conn.commit()
+                                st.rerun()
+
                     no_urut += 1
+                    st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
 
-                if table_rows:
-                    df_pesanan = pd.DataFrame(table_rows)
-                    
-                    st.dataframe(
-                        df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Harga Satuan", "Qty", "Level", "Catatan", "Subtotal"]],
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                # Bagian Pengaturan Status Lunas per Nama
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
+                unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
+                
+                for p_nama in unique_pemesan_tgl:
+                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
+                    p_res = cursor.fetchone()
+                    is_lunas_val = True if p_res and p_res[0] == 1 else False
 
-                    st.markdown("#### ❌ Kelola / Hapus Item Pesanan Satuan:")
-                    for row_item in table_rows:
-                        col_txt, col_btn = st.columns([6, 1])
-                        with col_txt:
-                            st.write(f"• **{row_item['Pemesan'] if row_item['Pemesan'] else '...'}** — Pesanan **{row_item['Menu / Item']}** ({row_item['Qty']}x)")
-                        with col_btn:
-                            if st.button("Hapus", key=f"tbl_del_{row_item['ID']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (row_item['ID'],))
-                                conn.commit()
-                                st.rerun()
-
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
-                    unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
-                    
-                    for p_nama in unique_pemesan_tgl:
-                        cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
-                        p_res = cursor.fetchone()
-                        is_lunas_val = True if p_res and p_res[0] == 1 else False
-
-                        c_lunas, c_nama_p = st.columns([1, 4])
-                        with c_lunas:
-                            ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
-                            if ubah_lunas != is_lunas_val:
-                                val_to_set = 1 if ubah_lunas else 0
-                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
-                                conn.commit()
-                                st.rerun()
-                        with c_nama_p:
-                            badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
-                            st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
+                    c_lunas, c_nama_p = st.columns([1, 4])
+                    with c_lunas:
+                        ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
+                        if ubah_lunas != is_lunas_val:
+                            val_to_set = 1 if ubah_lunas else 0
+                            cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
+                            conn.commit()
+                            st.rerun()
+                    with c_nama_p:
+                        badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
+                        st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
 
                 st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: Rp {total_biaya_tgl:,}")
                 
@@ -619,26 +620,4 @@ if is_admin:
     with tab_admin_menu:
         st.markdown("## 🛠️ Panel Kontrol Admin (Buka Menu Harian & Deadline)")
         
-        admin_tgl = st.date_input("Pilih Tanggal Jajan yang Mau Disetting Menunya:", value=datetime.date.today(), key="admin_tgl_tab")
-        admin_deadline = st.time_input("Tentukan Batas Waktu (Jam Penutupan Pesanan):", value=datetime.time(10, 0), key="admin_deadline_time")
-        
-        st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
-        st.write("Silakan centang menu apa saja yang **dibuka**:")
-        
-        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-        active_ids = [row[0] for row in cursor.fetchall()]
-        
-        selected_menu_ids = []
-        for item in MENU_JAJANAN:
-            is_checked = item["id"] in active_ids
-            check = st.checkbox(f"{item['nama']} - {item['deskripsi']}", value=is_checked, key=f"menu_chk_tab_{item['id']}")
-            if check:
-                selected_menu_ids.append(item["id"])
-                
-        if st.button("💾 Simpan Perubahan Menu & Batas Waktu"):
-            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-            deadline_str = admin_deadline.strftime("%H:%M")
-            for m_id in selected_menu_ids:
-                cursor.execute("INSERT INTO active_menu (tanggal, menu_id, deadline_time) VALUES (?, ?, ?)", (str(admin_tgl), m_id, deadline_str))
-            conn.commit()
-            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl}!")
+        admin_tgl = st.date_input
