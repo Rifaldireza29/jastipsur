@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 import sqlite3
 import streamlit.components.v1 as components
+import pandas as pd
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -507,52 +508,25 @@ if is_admin:
 
                 st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                 
-                # CSS Styling khusus untuk membuat tabel memiliki garis kotak-kotak pembatas sel ala Excel
+                # CSS styling untuk memberikan border/garis kotak-kotak ala Excel pada st.dataframe
                 st.markdown("""
                     <style>
-                    .excel-table-custom {
-                        width: 100%;
-                        border-collapse: collapse;
-                        font-family: sans-serif;
-                        font-size: 14px;
-                        margin-bottom: 15px;
-                    }
-                    .excel-table-custom th {
-                        background-color: #f0f2f6;
-                        color: #31333F;
-                        border: 1px solid #c0c0c0;
-                        padding: 8px 10px;
-                        text-align: left;
-                        font-weight: bold;
-                    }
-                    .excel-table-custom td {
+                    [data-testid="stDataFrame"] div[data-testid="stTable"] {
                         border: 1px solid #d3d3d3;
-                        padding: 8px 10px;
-                        color: #31333F;
-                        vertical-align: middle;
+                    }
+                    [data-testid="stDataFrame"] th {
+                        background-color: #f0f2f6 !important;
+                        border-bottom: 2px solid #d3d3d3 !important;
+                        border-right: 1px solid #d3d3d3 !important;
+                    }
+                    [data-testid="stDataFrame"] td {
+                        border-bottom: 1px solid #e0e0e0 !important;
+                        border-right: 1px solid #e0e0e0 !important;
                     }
                     </style>
                 """, unsafe_allow_html=True)
 
-                table_html = """
-                <table class="excel-table-custom">
-                    <thead>
-                        <tr>
-                            <th style="width: 5%;">No</th>
-                            <th style="width: 12%;">Pemesan</th>
-                            <th style="width: 13%;">Status</th>
-                            <th style="width: 22%;">Menu / Item</th>
-                            <th style="width: 10%;">Harga</th>
-                            <th style="width: 5%;">Qty</th>
-                            <th style="width: 10%;">Level</th>
-                            <th style="width: 15%;">Catatan</th>
-                            <th style="width: 15%;">Subtotal</th>
-                            <th style="width: 5%; text-align: center;">❌</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                """
-
+                table_rows = []
                 for nama, items in grouped_by_person.items():
                     menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
                     
@@ -565,76 +539,79 @@ if is_admin:
                     status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
 
                     for idx, m_item in enumerate(menu_items):
+                        m_sub = m_item["harga"] * m_item["qty"]
                         harga_satuan_str = f"Rp {m_item['harga']:,}"
                         
-                        display_no = str(no_urut) if idx == 0 else ""
+                        display_no = no_urut if idx == 0 else ""
                         display_nama = nama if idx == 0 else ""
                         display_status = status_lunas_str if idx == 0 else ""
                         
                         is_last_item = (idx == len(menu_items) - 1)
                         if is_last_item:
-                            # Subtotal akhir pemesan di-bold
-                            subtotal_text = f"<b>Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk jastip)</b>"
+                            # Subtotal akhir pemesan ditebalkan (bold menggunakan format markdown tabel)
+                            subtotal_text = f"**Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk jastip)**"
                         else:
                             subtotal_text = ""
 
-                        # Tombol hapus satuan diwakili karakter X/teks di kolom ujung kanan
-                        table_html += f"""
-                        <tr>
-                            <td>{display_no}</td>
-                            <td><b>{display_nama}</b></td>
-                            <td>{display_status}</td>
-                            <td>{m_item['nama_menu']}</td>
-                            <td>{harga_satuan_str}</td>
-                            <td>{m_item['qty']}</td>
-                            <td>{m_item['level']}</td>
-                            <td>{m_item['catatan']}</td>
-                            <td>{subtotal_text}</td>
-                            <td style="text-align: center;">-</td>
-                        </tr>
-                        """
+                        table_rows.append({
+                            "No": display_no,
+                            "Pemesan": display_nama,
+                            "Status Bayar": display_status,
+                            "Menu / Item": m_item["nama_menu"],
+                            "Harga Satuan": harga_satuan_str,
+                            "Qty": m_item["qty"],
+                            "Level": m_item["level"],
+                            "Catatan": m_item["catatan"],
+                            "Subtotal": subtotal_text,
+                            "ID": m_item["id"]
+                        })
                     no_urut += 1
 
-                table_html += "</tbody></table>"
-                st.markdown(table_html, unsafe_allow_html=True)
+                if table_rows:
+                    df_pesanan = pd.DataFrame(table_rows)
+                    
+                    # Tampilkan tabel interaktif bawaan Streamlit
+                    st.dataframe(
+                        df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Harga Satuan", "Qty", "Level", "Catatan", "Subtotal"]],
+                        use_container_width=True,
+                        hide_index=True
+                    )
 
-                # Tombol hapus satuan interaktif diletakkan di bawah tabel agar tetap bisa diklik dengan mudah
-                st.markdown("#### ❌ Kelola / Hapus Item Pesanan Satuan:")
-                for nama, items in grouped_by_person.items():
-                    menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
-                    for m_item in menu_items:
+                    # Tombol hapus satuan pesanan per baris yang diletakkan rapi di bawah tabel
+                    st.markdown("#### ❌ Kelola / Hapus Item Pesanan Satuan:")
+                    for row_item in table_rows:
                         col_txt, col_btn = st.columns([6, 1])
                         with col_txt:
-                            st.write(f"• **{nama}** — Pesanan **{m_item['nama_menu']}** ({m_item['qty']}x)")
+                            st.write(f"• **{row_item['Pemesan'] if row_item['Pemesan'] else '...'}** — Pesanan **{row_item['Menu / Item']}** ({row_item['Qty']}x)")
                         with col_btn:
-                            if st.button("Hapus", key=f"tbl_del_{m_item['id']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (m_item['id'],))
+                            if st.button("Hapus", key=f"tbl_del_{row_item['ID']}"):
+                                cursor.execute("DELETE FROM orders WHERE id = ?", (row_item['ID'],))
                                 conn.commit()
                                 st.rerun()
 
-                # Bagian Pengaturan Status Lunas per Nama
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
-                unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
-                
-                for p_nama in unique_pemesan_tgl:
-                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
-                    p_res = cursor.fetchone()
-                    is_lunas_val = True if p_res and p_res[0] == 1 else False
+                    # Bagian Pengaturan Status Lunas per Nama
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
+                    unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
+                    
+                    for p_nama in unique_pemesan_tgl:
+                        cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
+                        p_res = cursor.fetchone()
+                        is_lunas_val = True if p_res and p_res[0] == 1 else False
 
-                    c_lunas, c_nama_p = st.columns([1, 4])
-                    with c_lunas:
-                        ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
-                        if ubah_lunas != is_lunas_val:
-                            val_to_set = 1 if ubah_lunas else 0
-                            cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
-                            conn.commit()
-                            st.rerun()
-                    with c_nama_p:
-                        badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
-                        st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
+                        c_lunas, c_nama_p = st.columns([1, 4])
+                        with c_lunas:
+                            ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
+                            if ubah_lunas != is_lunas_val:
+                                val_to_set = 1 if ubah_lunas else 0
+                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
+                                conn.commit()
+                                st.rerun()
+                        with c_nama_p:
+                            badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
+                            st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
 
-                # Menampilkan Grand Total uang jajan di luar tabel agar jelas ratusan ribu
+                # Grand Total uang jajan di luar tabel (ratusan ribu)
                 st.markdown("---")
                 st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
                 
