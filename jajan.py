@@ -22,7 +22,6 @@ def init_gspread():
     creds_dict = dict(st.secrets["gcp_service_account"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
-    # Nama file Google Spreadsheet yang benar tanpa huruf r tambahan
     spreadsheet = client.open("Database_Jastipsur")
     return spreadsheet
 
@@ -32,8 +31,19 @@ try:
     sheet_active_menu = sh.worksheet("active_menu")
     sheet_payment = sh.worksheet("payment_status")
 except Exception as e:
-    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan ketiga tab ('orders', 'active_menu', 'payment_status') sudah ada! Error: {e}")
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan ketiga tab sudah ada! Error: {e}")
     st.stop()
+
+# --- FUNGSI CACHE DATA UNTUK MENCEGAH ERROR 429 (QUOTA EXCEEDED) ---
+@st.cache_data(ttl=5)
+def get_cached_records(sheet_type):
+    if sheet_type == "orders":
+        return sheet_orders.get_all_records()
+    elif sheet_type == "active_menu":
+        return sheet_active_menu.get_all_records()
+    elif sheet_type == "payment_status":
+        return sheet_payment.get_all_records()
+    return []
 
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
@@ -247,11 +257,7 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    try:
-        active_rows_raw = sheet_active_menu.get_all_records()
-    except:
-        active_rows_raw = []
-
+    active_rows_raw = get_cached_records("active_menu")
     active_menu_ids = []
     deadline_str = None
     
@@ -398,7 +404,7 @@ with tab_form:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
                 try:
-                    all_orders_data = sheet_orders.get_all_records()
+                    all_orders_data = get_cached_records("orders")
                 except:
                     all_orders_data = []
                 new_id = len(all_orders_data) + 1
@@ -463,10 +469,11 @@ if is_admin:
             st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Eksklusif Admin)")
         with col_btn:
             if st.button("🔄 Refresh Data Rekap"):
+                st.cache_data.clear()
                 st.rerun()
         
         try:
-            orders_data_raw = sheet_orders.get_all_records()
+            orders_data_raw = get_cached_records("orders")
         except:
             orders_data_raw = []
         
@@ -478,6 +485,7 @@ if is_admin:
                 sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
                 sheet_payment.clear()
                 sheet_payment.append_row(["tanggal", "nama_pemesan", "is_lunas"])
+                st.cache_data.clear()
                 st.rerun()
 
             st.markdown("---")
@@ -502,7 +510,7 @@ if is_admin:
             unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
 
             try:
-                payment_rows_raw = sheet_payment.get_all_records()
+                payment_rows_raw = get_cached_records("payment_status")
             except:
                 payment_rows_raw = []
 
@@ -581,6 +589,7 @@ if is_admin:
                                         sheet_payment.update_cell(cell_row, 3, val_to_set)
                                     else:
                                         sheet_payment.append_row([str(tgl), str(nama), val_to_set])
+                                    st.cache_data.clear()
                                     st.rerun()
                         else:
                             row_cols[2].write("")
@@ -597,6 +606,7 @@ if is_admin:
                                 cell = sheet_orders.find(str(m_item['id']))
                                 if cell:
                                     sheet_orders.delete_rows(cell.row)
+                                st.cache_data.clear()
                                 st.rerun()
 
                     no_urut += 1
@@ -641,7 +651,7 @@ if is_admin:
         st.write("Silakan centang menu apa saja yang **dibuka**:")
         
         try:
-            active_menu_raw = sheet_active_menu.get_all_records()
+            active_menu_raw = get_cached_records("active_menu")
         except:
             active_menu_raw = []
 
@@ -664,5 +674,6 @@ if is_admin:
             for m_id in selected_menu_ids:
                 sheet_active_menu.append_row([str(admin_tgl), int(m_id), str(deadline_str)])
 
+            st.cache_data.clear()
             st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl} ke Google Sheets!")
             st.rerun()
