@@ -387,7 +387,7 @@ with tab_form:
         total_biaya_akhir = subtotal_menu + biaya_jastip
 
         st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
-        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
+        st.markdown(f"Biaya Jastip: Rp {biaya_jastip:,}")
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
@@ -496,7 +496,7 @@ if is_admin:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
                 orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
                 
-                # Mengelompokkan pesanan berdasarkan nama pemesan per tanggal
+                # Kelompokkan pesanan per pemesan, dan pisahkan item makanan dengan biaya jastip
                 grouped_by_person = {}
                 for ord_data in orders_on_date:
                     nama = ord_data["nama_pemesan"]
@@ -509,31 +509,36 @@ if is_admin:
                 no_urut = 1
 
                 for nama, items in grouped_by_person.items():
-                    # Pisahkan item makanan dan biaya jastip miliknya
+                    # Ambil hanya item makanan (abaikan baris Biaya Jastip mentah dari DB)
                     menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
-                    jastip_item = [i for i in items if i["nama_menu"] == "Biaya Jastip"]
-
-                    # Hitung total belanja orang tersebut (makanan + jastip)
-                    subtotal_orang = sum([i["harga"] * i["qty"] for i in items])
-                    total_biaya_tgl += subtotal_orang
+                    
+                    # Hitung total belanja orang tersebut (makanan + jastip Rp 1.000)
+                    subtotal_murni_makanan = sum([i["harga"] * i["qty"] for i in menu_items])
+                    subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
+                    total_biaya_tgl += subtotal_orang_dengan_jastip
 
                     # Cek status lunas
                     cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
                     p_status = cursor.fetchone()
                     status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
 
-                    # Masukkan item makanan (Nama pemesan hanya ditulis di baris pertama milik orang tersebut)
                     for idx, m_item in enumerate(menu_items):
                         m_sub = m_item["harga"] * m_item["qty"]
+                        
+                        # Nomor urut & nama pemesan hanya muncul di baris pertama milik orang tersebut
+                        display_no = no_urut if idx == 0 else ""
                         display_nama = nama if idx == 0 else ""
                         display_status = status_lunas_str if idx == 0 else ""
                         
-                        # Cek apakah ini baris terakhir dan tidak ada jastip terpisah (untuk menaruh subtotal)
-                        is_last_item = (idx == len(menu_items) - 1) and (not jastip_item)
-                        subtotal_text = f"Rp {subtotal_orang:,} (sdh termasuk biaya jastip 1000)" if is_last_item else f"Rp {m_sub:,}"
+                        # Jika ini adalah baris terakhir dari pemesan tersebut, masukkan subtotal plus jastip
+                        is_last_item = (idx == len(menu_items) - 1)
+                        if is_last_item:
+                            subtotal_text = f"Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk biaya jastip 1000)"
+                        else:
+                            subtotal_text = f"Rp {m_sub:,}"
 
                         table_data.append({
-                            "No": no_urut,
+                            "No": display_no,
                             "Pemesan": display_nama,
                             "Status Bayar": display_status,
                             "Menu / Item": m_item["nama_menu"],
@@ -543,43 +548,8 @@ if is_admin:
                             "Subtotal": subtotal_text,
                             "ID": m_item["id"]
                         })
-                        no_urut += 1
-
-                    # Jika ada jastip, gabungkan ke baris terakhir makanan atau buat baris khusus dengan subtotal total orang tersebut
-                    if jastip_item:
-                        # Ambil jastip pertama sebagai representasi
-                        j_item = jastip_item[0]
-                        # Jika ada menu sebelumnya, kita gabungkan subtotalnya ke baris jastip ini
-                        display_nama = "" if menu_items else nama
-                        display_status = "" if menu_items else status_lunas_str
-
-                        table_data.append({
-                            "No": no_urut,
-                            "Pemesan": display_nama,
-                            "Status Bayar": display_status,
-                            "Menu / Item": "Biaya Jastip",
-                            "Qty": 1,
-                            "Level": "-",
-                            "Catatan": "monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk",
-                            "Subtotal": f"Rp {subtotal_orang:,} (sdh termasuk biaya jastip 1000)",
-                            "ID": j_item["id"]
-                        })
-                        no_urut += 1
-                        
-                        # Hapus sisa jastip jika ada duplikat
-                        for extra_j in jastip_item[1:]:
-                            table_data.append({
-                                "No": no_urut,
-                                "Pemesan": "",
-                                "Status Bayar": "",
-                                "Menu / Item": "Biaya Jastip",
-                                "Qty": 1,
-                                "Level": "-",
-                                "Catatan": "monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk",
-                                "Subtotal": "-",
-                                "ID": extra_j["id"]
-                            })
-                            no_urut += 1
+                    
+                    no_urut += 1
 
                 if table_data:
                     df_pesanan = pd.DataFrame(table_data)
