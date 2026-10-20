@@ -1,6 +1,7 @@
 import streamlit as st
 import datetime
-import sqlite3
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 import streamlit.components.v1 as components
 import pandas as pd
 
@@ -11,43 +12,26 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- SETUP DATABASE SQLITE ---
-def init_db():
-    conn = sqlite3.connect("database_jajan.db", check_same_thread=False)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS orders (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tanggal TEXT,
-            nama_pemesan TEXT,
-            nama_menu TEXT,
-            harga INTEGER,
-            qty INTEGER,
-            level TEXT,
-            catatan TEXT
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS active_menu (
-            tanggal TEXT,
-            menu_id INTEGER,
-            deadline_time TEXT,
-            PRIMARY KEY (tanggal, menu_id)
-        )
-    """)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS payment_status (
-            tanggal TEXT,
-            nama_pemesan TEXT,
-            is_lunas INTEGER,
-            PRIMARY KEY (tanggal, nama_pemesan)
-        )
-    """)
-    conn.commit()
-    return conn
+# --- SETUP KONEKSI GOOGLE SHEETS ---
+@st.cache_resource
+def init_gspread():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+    client = gspread.authorize(creds)
+    spreadsheet = client.open("Database Jajan Surya")
+    return spreadsheet
 
-conn = init_db()
-cursor = conn.cursor()
+try:
+    sh = init_gspread()
+    sheet_orders = sh.worksheet("orders")
+    sheet_active_menu = sh.worksheet("active_menu")
+    sheet_payment = sh.worksheet("payment_status")
+except Exception as e:
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'credentials.json' ada dan Google Sheet sudah di-share ke email bot! Error: {e}")
+    st.stop()
 
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
@@ -200,12 +184,12 @@ MENU_JAJANAN = [
         "tipe_menu": "varian", 
         "varian": [
             {"nama": "Coklat", "harga": 7000},
-            {"nama": "Strawberry", "harga": 6000},
+            {"nama": "Strawberry", "harga": 7000},
             {"nama": "Keju", "harga": 7000},
-            {"nama": "Blueberry", "harga": 6000},
-            {"nama": "Kacang", "harga": 6000},
-            {"nama": "Coklat-Keju", "harga": 10000},
-            {"nama": "Coklat-Kacang", "harga": 9500},
+            {"nama": "Blueberry", "harga": 7000},
+            {"nama": "Kacang", "harga": 7000},
+            {"nama": "Coklat-Keju", "harga": 9500},
+            {"nama": "Coklat-Kacang", "harga": 8500},
             {"nama": "Kacang-Strawberry", "harga": 8500}
         ],
         "deskripsi": "roti bakar yomart tea nu endul."
@@ -261,10 +245,15 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu yang Dibuka Admin untuk Tanggal: {tanggal_jajan}")
 
-    cursor.execute("SELECT menu_id, deadline_time FROM active_menu WHERE tanggal = ?", (str(tanggal_jajan),))
-    active_rows = cursor.fetchall()
-    active_menu_ids = [r[0] for r in active_rows]
-    deadline_str = active_rows[0][1] if active_rows and active_rows[0][1] else None
+    active_rows_raw = sheet_active_menu.get_all_records()
+    active_menu_ids = []
+    deadline_str = None
+    
+    for r in active_rows_raw:
+        if str(r.get("tanggal")) == str(tanggal_jajan):
+            active_menu_ids.append(int(r.get("menu_id")))
+            if r.get("deadline_time"):
+                deadline_str = str(r.get("deadline_time"))
 
     WIB = datetime.timezone(datetime.timedelta(hours=7))
     now_wib = datetime.datetime.now(WIB)
@@ -387,7 +376,7 @@ with tab_form:
         total_biaya_akhir = subtotal_menu + biaya_jastip
 
         st.markdown(f"Subtotal Menu: Rp {subtotal_menu:,}")
-        st.markdown(f"Biaya Jastip (monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk): Rp {biaya_jastip:,}")
+        st.markdown(f"Biaya Jastip: Rp {biaya_jastip:,}")
         st.markdown(f"### Total Biaya Kesimpulan (Termasuk Jastip): **Rp {total_biaya_akhir:,}**")
 
         if st.button("🚀 Simpan & Masukkan ke Rekap Utama"):
@@ -396,41 +385,39 @@ with tab_form:
             elif not nama_pemesan:
                 st.error("Mohon isi Nama Pemesan terlebih dahulu!")
             else:
+                all_orders_data = sheet_orders.get_all_records()
+                new_id = len(all_orders_data) + 1
+
                 for cart_item in st.session_state.current_cart:
-                    cursor.execute("""
-                        INSERT INTO orders (tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
+                    sheet_orders.append_row([
+                        new_id,
                         str(tanggal_jajan),
                         nama_pemesan,
                         cart_item["nama_menu"],
-                        cart_item["harga"],
-                        cart_item["qty"],
+                        int(cart_item["harga"]),
+                        int(cart_item["qty"]),
                         cart_item["level"],
                         cart_item["catatan"]
-                    ))
-                    conn.commit()
+                    ])
+                    new_id += 1
 
-                cursor.execute("""
-                    INSERT INTO orders (tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (
+                sheet_orders.append_row([
+                    new_id,
                     str(tanggal_jajan),
                     nama_pemesan,
                     "Biaya Jastip",
-                    biaya_jastip,
+                    int(biaya_jastip),
                     1,
                     "-",
-                    "monmaap ada biaya jastip yak untuk modal nikah ya wkwkwk"
-                ))
-                conn.commit()
+                    ""
+                ])
 
                 st.session_state.last_total_pay = total_biaya_akhir
                 st.session_state.last_nama_pay = nama_pemesan
                 st.session_state.show_payment_popup = True
                 
                 st.session_state.current_cart = []
-                st.success("Yeay! Pesanan berhasil disimpan.")
+                st.success("Yeay! Pesanan berhasil disimpan ke Google Sheets.")
                 st.balloons()
                 st.rerun()
 
@@ -463,34 +450,37 @@ if is_admin:
             if st.button("🔄 Refresh Data Rekap"):
                 st.rerun()
         
-        cursor.execute("SELECT id, tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan FROM orders")
-        rows = cursor.fetchall()
+        orders_data_raw = sheet_orders.get_all_records()
         
-        if not rows:
-            st.info("Belum ada data pesanan yang masuk di database.")
+        if not orders_data_raw:
+            st.info("Belum ada data pesanan yang masuk di Google Sheet.")
         else:
-            if st.button("🗑️ Reset / Hapus Semua Rekap Database"):
-                cursor.execute("DELETE FROM orders")
-                cursor.execute("DELETE FROM payment_status")
-                conn.commit()
+            if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
+                sheet_orders.clear()
+                sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
+                sheet_payment.clear()
+                sheet_payment.append_row(["tanggal", "nama_pemesan", "is_lunas"])
                 st.rerun()
 
             st.markdown("---")
             
             all_orders_db = []
-            for r in rows:
-                all_orders_db.append({
-                    "id": r[0],
-                    "tanggal": r[1],
-                    "nama_pemesan": r[2],
-                    "nama_menu": r[3],
-                    "harga": r[4],
-                    "qty": r[5],
-                    "level": r[6],
-                    "catatan": r[7]
-                })
+            for r in orders_data_raw:
+                if r.get("id") != "":
+                    all_orders_db.append({
+                        "id": int(r.get("id", 0)),
+                        "tanggal": str(r.get("tanggal", "")),
+                        "nama_pemesan": str(r.get("nama_pemesan", "")),
+                        "nama_menu": str(r.get("nama_menu", "")),
+                        "harga": int(r.get("harga", 0)),
+                        "qty": int(r.get("qty", 0)),
+                        "level": str(r.get("level", "")),
+                        "catatan": str(r.get("catatan", ""))
+                    })
 
-            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db)))
+            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
+
+            payment_rows_raw = sheet_payment.get_all_records()
 
             for tgl in unique_dates:
                 st.markdown(f"### 📅 Tanggal: {tgl}")
@@ -508,25 +498,20 @@ if is_admin:
 
                 st.markdown("#### 📋 Tabel Master Semua Pesanan:")
                 
-                # CSS styling untuk memberikan border/garis kotak-kotak ala Excel pada st.dataframe
-                st.markdown("""
-                    <style>
-                    [data-testid="stDataFrame"] div[data-testid="stTable"] {
-                        border: 1px solid #d3d3d3;
-                    }
-                    [data-testid="stDataFrame"] th {
-                        background-color: #f0f2f6 !important;
-                        border-bottom: 2px solid #d3d3d3 !important;
-                        border-right: 1px solid #d3d3d3 !important;
-                    }
-                    [data-testid="stDataFrame"] td {
-                        border-bottom: 1px solid #e0e0e0 !important;
-                        border-right: 1px solid #e0e0e0 !important;
-                    }
-                    </style>
-                """, unsafe_allow_html=True)
+                # Header Tabel Rapih ala Excel (Tanpa st.dataframe yang bikin kaku)
+                header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+                header_cols[0].markdown("**No**")
+                header_cols[1].markdown("**Pemesan**")
+                header_cols[2].markdown("**Status**")
+                header_cols[3].markdown("**Menu / Item**")
+                header_cols[4].markdown("**Harga**")
+                header_cols[5].markdown("**Qty**")
+                header_cols[6].markdown("**Level**")
+                header_cols[7].markdown("**Catatan**")
+                header_cols[8].markdown("**Subtotal**")
+                header_cols[9].markdown("**Aksi**")
+                st.markdown("<hr style='margin: 4px 0px;'>", unsafe_allow_html=True)
 
-                table_rows = []
                 for nama, items in grouped_by_person.items():
                     menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
                     
@@ -534,84 +519,69 @@ if is_admin:
                     subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                     total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                    cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, nama))
-                    p_status = cursor.fetchone()
-                    status_lunas_str = "LUNAS ✅" if p_status and p_status[0] == 1 else "BELUM LUNAS ⏳"
+                    # Cek status lunas
+                    is_currently_lunas = False
+                    for pr in payment_rows_raw:
+                        if str(pr.get("tanggal")) == str(tgl) and str(pr.get("nama_pemesan")) == str(nama):
+                            if int(pr.get("is_lunas", 0)) == 1:
+                                is_currently_lunas = True
 
                     for idx, m_item in enumerate(menu_items):
-                        m_sub = m_item["harga"] * m_item["qty"]
                         harga_satuan_str = f"Rp {m_item['harga']:,}"
                         
-                        display_no = no_urut if idx == 0 else ""
+                        display_no = str(no_urut) if idx == 0 else ""
                         display_nama = nama if idx == 0 else ""
-                        display_status = status_lunas_str if idx == 0 else ""
                         
                         is_last_item = (idx == len(menu_items) - 1)
                         if is_last_item:
-                            # Subtotal akhir pemesan ditebalkan (bold menggunakan format markdown tabel)
-                            subtotal_text = f"**Rp {subtotal_orang_dengan_jastip:,} (sdh termasuk jastip)**"
+                            subtotal_text = f"**Rp {subtotal_orang_dengan_jastip:,} (sdh jastip)**"
                         else:
                             subtotal_text = ""
 
-                        table_rows.append({
-                            "No": display_no,
-                            "Pemesan": display_nama,
-                            "Status Bayar": display_status,
-                            "Menu / Item": m_item["nama_menu"],
-                            "Harga Satuan": harga_satuan_str,
-                            "Qty": m_item["qty"],
-                            "Level": m_item["level"],
-                            "Catatan": m_item["catatan"],
-                            "Subtotal": subtotal_text,
-                            "ID": m_item["id"]
-                        })
+                        row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+                        row_cols[0].write(display_no)
+                        row_cols[1].write(display_nama)
+                        
+                        # Status Lunas langsung di baris pemesan pertama
+                        if idx == 0:
+                            with row_cols[2]:
+                                ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
+                                if ubah_lunas != is_currently_lunas:
+                                    val_to_set = 1 if ubah_lunas else 0
+                                    found_pay = False
+                                    cell_row = None
+                                    for idx_p, pr in enumerate(payment_rows_raw):
+                                        if str(pr.get("tanggal")) == str(tgl) and str(pr.get("nama_pemesan")) == str(nama):
+                                            found_pay = True
+                                            cell_row = idx_p + 2
+                                            break
+                                    
+                                    if found_pay and cell_row:
+                                        sheet_payment.update_cell(cell_row, 3, val_to_set)
+                                    else:
+                                        sheet_payment.append_row([str(tgl), str(nama), val_to_set])
+                                    st.rerun()
+                        else:
+                            row_cols[2].write("")
+
+                        row_cols[3].write(m_item["nama_menu"])
+                        row_cols[4].write(harga_satuan_str)
+                        row_cols[5].write(str(m_item["qty"]))
+                        row_cols[6].write(m_item["level"])
+                        row_cols[7].write(m_item["catatan"])
+                        row_cols[8].write(subtotal_text)
+                        
+                        # Tombol Hapus (X) langsung di ujung kanan baris menu masing-masing
+                        with row_cols[9]:
+                            if st.button("❌", key=f"del_btn_{m_item['id']}"):
+                                cell = sheet_orders.find(str(m_item['id']))
+                                if cell:
+                                    sheet_orders.delete_rows(cell.row)
+                                st.rerun()
+
                     no_urut += 1
+                    st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
 
-                if table_rows:
-                    df_pesanan = pd.DataFrame(table_rows)
-                    
-                    # Tampilkan tabel interaktif bawaan Streamlit
-                    st.dataframe(
-                        df_pesanan[["No", "Pemesan", "Status Bayar", "Menu / Item", "Harga Satuan", "Qty", "Level", "Catatan", "Subtotal"]],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                    # Tombol hapus satuan pesanan per baris yang diletakkan rapi di bawah tabel
-                    st.markdown("#### ❌ Kelola / Hapus Item Pesanan Satuan:")
-                    for row_item in table_rows:
-                        col_txt, col_btn = st.columns([6, 1])
-                        with col_txt:
-                            st.write(f"• **{row_item['Pemesan'] if row_item['Pemesan'] else '...'}** — Pesanan **{row_item['Menu / Item']}** ({row_item['Qty']}x)")
-                        with col_btn:
-                            if st.button("Hapus", key=f"tbl_del_{row_item['ID']}"):
-                                cursor.execute("DELETE FROM orders WHERE id = ?", (row_item['ID'],))
-                                conn.commit()
-                                st.rerun()
-
-                    # Bagian Pengaturan Status Lunas per Nama
-                    st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("#### ⚙️ Status Pembayaran per Pemesan:")
-                    unique_pemesan_tgl = sorted(list(set(grouped_by_person.keys())))
-                    
-                    for p_nama in unique_pemesan_tgl:
-                        cursor.execute("SELECT is_lunas FROM payment_status WHERE tanggal = ? AND nama_pemesan = ?", (tgl, p_nama))
-                        p_res = cursor.fetchone()
-                        is_lunas_val = True if p_res and p_res[0] == 1 else False
-
-                        c_lunas, c_nama_p = st.columns([1, 4])
-                        with c_lunas:
-                            ubah_lunas = st.checkbox(f"Lunas", value=is_lunas_val, key=f"master_lunas_{tgl}_{p_nama}")
-                            if ubah_lunas != is_lunas_val:
-                                val_to_set = 1 if ubah_lunas else 0
-                                cursor.execute("INSERT OR REPLACE INTO payment_status (tanggal, nama_pemesan, is_lunas) VALUES (?, ?, ?)", (tgl, p_nama, val_to_set))
-                                conn.commit()
-                                st.rerun()
-                        with c_nama_p:
-                            badge_txt = "✅ **LUNAS**" if ubah_lunas else "⏳ **BELUM LUNAS**"
-                            st.write(f"👤 **{p_nama}** — Status: {badge_txt}")
-
-                # Grand Total uang jajan di luar tabel (ratusan ribu)
                 st.markdown("---")
                 st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
                 
@@ -650,8 +620,8 @@ if is_admin:
         st.info(f"💡 Mengatur menu & batas waktu untuk tanggal: **{admin_tgl}** (Deadline: **{admin_deadline.strftime('%H:%M')} WIB**) ")
         st.write("Silakan centang menu apa saja yang **dibuka**:")
         
-        cursor.execute("SELECT menu_id FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
-        active_ids = [row[0] for row in cursor.fetchall()]
+        active_menu_raw = sheet_active_menu.get_all_records()
+        active_ids = [int(row["menu_id"]) for row in active_menu_raw if str(row.get("tanggal")) == str(admin_tgl)]
         
         selected_menu_ids = []
         for item in MENU_JAJANAN:
@@ -661,9 +631,14 @@ if is_admin:
                 selected_menu_ids.append(item["id"])
                 
         if st.button("💾 Simpan Perubahan Menu & Batas Waktu"):
-            cursor.execute("DELETE FROM active_menu WHERE tanggal = ?", (str(admin_tgl),))
+            cell_list = sheet_active_menu.findall(str(admin_tgl))
+            row_indices_to_delete = sorted([c.row for c in cell_list], reverse=True)
+            for r_idx in row_indices_to_delete:
+                sheet_active_menu.delete_rows(r_idx)
+
             deadline_str = admin_deadline.strftime("%H:%M")
             for m_id in selected_menu_ids:
-                cursor.execute("INSERT INTO active_menu (tanggal, menu_id, deadline_time) VALUES (?, ?, ?)", (str(admin_tgl), m_id, deadline_str))
-            conn.commit()
-            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl}!")
+                sheet_active_menu.append_row([str(admin_tgl), int(m_id), str(deadline_str)])
+
+            st.success(f"Berhasil menyimpan menu aktif & batas waktu jam {deadline_str} untuk tanggal {admin_tgl} ke Google Sheets!")
+            st.rerun()
