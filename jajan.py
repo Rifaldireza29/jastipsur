@@ -28,27 +28,13 @@ def init_gspread():
 try:
     sh = init_gspread()
     
-    # Cek atau buat worksheet secara otomatis jika belum ada
-    try:
-        sheet_orders = sh.worksheet("orders")
-    except:
-        sheet_orders = sh.add_worksheet(title="orders", rows="100", cols="10")
-        sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
-
-    try:
-        sheet_active_menu = sh.worksheet("active_menu")
-    except:
-        sheet_active_menu = sh.add_worksheet(title="active_menu", rows="100", cols="5")
-        sheet_active_menu.append_row(["tanggal", "menu_id", "deadline_time"])
-
-    try:
-        sheet_payment = sh.worksheet("payment_status")
-    except:
-        sheet_payment = sh.add_worksheet(title="payment_status", rows="100", cols="5")
-        sheet_payment.append_row(["tanggal", "nama_pemesan", "is_lunas"])
+    # Langsung panggil worksheet-nya tanpa fungsi buat ulang yang bikin konflik
+    sheet_orders = sh.worksheet("orders")
+    sheet_active_menu = sh.worksheet("active_menu")
+    sheet_payment = sh.worksheet("payment_status")
 
 except Exception as e:
-    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastiprsur' sudah di-share ke email bot! Error: {e}")
+    st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan ketiga tab ('orders', 'active_menu', 'payment_status') sudah ada! Error: {e}")
     st.stop()
 
 # --- INISIALISASI SESSION STATE ---
