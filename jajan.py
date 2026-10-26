@@ -99,7 +99,6 @@ def load_active_menu_from_sheet():
                     return [int(x.strip()) for x in catatan_str.split(",") if x.strip().isdigit()]
     except:
         pass
-    # Default jika belum ada settingan tersimpan: aktifkan semua
     return [item["id"] for item in MENU_JAJANAN]
 
 # --- INISIALISASI SESSION STATE ---
@@ -110,7 +109,6 @@ if "show_payment_popup" not in st.session_state:
 if "active_menu_ids" not in st.session_state:
     st.session_state.active_menu_ids = load_active_menu_from_sheet()
 
-# Inisialisasi state checkbox menu admin
 for item in MENU_JAJANAN:
     key_name = f"toggle_menu_{item['id']}"
     if key_name not in st.session_state:
@@ -136,14 +134,17 @@ if mode_akses == "Admin (Surya)":
     else:
         st.sidebar.warning("⚠️ Masukkan password admin yang benar.")
 
-# --- TAMPILAN TAB BERDASARKAN PERAN ---
+# --- RENDER KONTEN BERDASARKAN PERAN DENGAN STRUKTUR TAB YANG BENAR ---
 if is_admin:
     tab_form, tab_rekap, tab_admin_menu = st.tabs(["📝 Form Pesanan", "📊 Master Rekap Gabungan", "🛠️ Panel Kontrol Menu"])
 else:
+    # Untuk member, buat wadah tunggal tanpa tab admin
     tab_form = st.container()
+    tab_rekap = None
+    tab_admin_menu = None
 
 # ================= TAB 1: FORM PESANAN MEMBER =================
-with tab_form:
+def render_form_pesanan():
     if is_admin:
         st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member (Bebas akses)")
     
@@ -300,219 +301,233 @@ with tab_form:
             st.rerun()
 
 # ================= TAB 2: MASTER REKAP GABUNGAN (KHUSUS ADMIN) =================
-if is_admin:
-    with tab_rekap:
-        col_title, col_btn = st.columns([3, 1])
-        with col_title:
-            st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Eksklusif Admin)")
-        with col_btn:
-            if st.button("🔄 Refresh Data Rekap"):
-                st.cache_data.clear()
-                st.rerun()
-        
-        try:
-            orders_data_raw = get_cached_orders()
-        except:
-            orders_data_raw = []
-        
-        all_orders_db = []
-        for r in orders_data_raw:
-            r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
-            # Abaikan baris config sistem agar tidak tampil di rekap keuangan
-            if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
-                continue
-            if r_lower.get("id") != "" and r_lower.get("id") is not None:
-                try:
-                    all_orders_db.append({
-                        "id": int(r_lower.get("id", 0)),
-                        "tanggal": str(r_lower.get("tanggal", "")),
-                        "nama_pemesan": str(r_lower.get("nama_pemesan", "")),
-                        "nama_menu": str(r_lower.get("nama_menu", "")),
-                        "harga": int(r_lower.get("harga", 0)),
-                        "qty": int(r_lower.get("qty", 0)),
-                        "level": str(r_lower.get("level", "")),
-                        "catatan": str(r_lower.get("catatan", "")),
-                        "status_lunas": str(r_lower.get("status_lunas", "Belum Lunas"))
-                    })
-                except:
-                    pass
+def render_master_rekap():
+    col_title, col_btn = st.columns([3, 1])
+    with col_title:
+        st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Eksklusif Admin)")
+    with col_btn:
+        if st.button("🔄 Refresh Data Rekap"):
+            st.cache_data.clear()
+            st.rerun()
+    
+    try:
+        orders_data_raw = get_cached_orders()
+    except:
+        orders_data_raw = []
+    
+    all_orders_db = []
+    for r in orders_data_raw:
+        r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
+        if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
+            continue
+        if r_lower.get("nama_pemesan") and r_lower.get("nama_menu"):
+            try:
+                all_orders_db.append({
+                    "id": int(r_lower.get("id", 0) or 0),
+                    "tanggal": str(r_lower.get("tanggal", "")),
+                    "nama_pemesan": str(r_lower.get("nama_pemesan", "")),
+                    "nama_menu": str(r_lower.get("nama_menu", "")),
+                    "harga": int(r_lower.get("harga", 0) or 0),
+                    "qty": int(r_lower.get("qty", 1) or 1),
+                    "level": str(r_lower.get("level", "-")),
+                    "catatan": str(r_lower.get("catatan", "")),
+                    "status_lunas": str(r_lower.get("status_lunas", "Belum Lunas"))
+                })
+            except:
+                pass
 
-        if not all_orders_db:
-            st.info("Belum ada data pesanan yang masuk di Google Sheet.")
-        else:
-            if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
-                # Pertahankan baris config jika ada, atau reset tapi buat ulang
-                sheet_orders.clear()
-                sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
-                st.cache_data.clear()
-                st.rerun()
+    if not all_orders_db:
+        st.info("Belum ada data pesanan yang masuk di Google Sheet.")
+    else:
+        if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
+            sheet_orders.clear()
+            sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
+            st.cache_data.clear()
+            st.rerun()
 
-            st.markdown("---")
+        st.markdown("---")
+        
+        unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
+
+        for tgl in unique_dates:
+            st.markdown(f"### 📅 Tanggal: {tgl}")
+            orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
             
-            unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
+            grouped_by_person = {}
+            for ord_data in orders_on_date:
+                nama = ord_data["nama_pemesan"]
+                if nama not in grouped_by_person:
+                    grouped_by_person[nama] = []
+                grouped_by_person[nama].append(ord_data)
 
-            for tgl in unique_dates:
-                st.markdown(f"### 📅 Tanggal: {tgl}")
-                orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
+            total_biaya_tgl = 0
+            no_urut = 1
+
+            st.markdown("#### 📋 Tabel Master Semua Pesanan:")
+            
+            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+            header_cols[0].markdown("**No**")
+            header_cols[1].markdown("**Pemesan**")
+            header_cols[2].markdown("**Status**")
+            header_cols[3].markdown("**Menu / Item**")
+            header_cols[4].markdown("**Harga**")
+            header_cols[5].markdown("**Qty**")
+            header_cols[6].markdown("**Level**")
+            header_cols[7].markdown("**Catatan**")
+            header_cols[8].markdown("**Subtotal**")
+            header_cols[9].markdown("**Aksi**")
+            st.markdown("<hr style='margin: 4px 0px;'>", unsafe_allow_html=True)
+
+            for nama, items in grouped_by_person.items():
+                menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
                 
-                grouped_by_person = {}
-                for ord_data in orders_on_date:
-                    nama = ord_data["nama_pemesan"]
-                    if nama not in grouped_by_person:
-                        grouped_by_person[nama] = []
-                    grouped_by_person[nama].append(ord_data)
+                subtotal_murni_makanan = sum([i["harga"] * i["qty"] for i in menu_items])
+                subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
+                total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                total_biaya_tgl = 0
-                no_urut = 1
+                is_currently_lunas = items[0]["status_lunas"] == "Lunas" if items else False
 
-                st.markdown("#### 📋 Tabel Master Semua Pesanan:")
-                
-                header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
-                header_cols[0].markdown("**No**")
-                header_cols[1].markdown("**Pemesan**")
-                header_cols[2].markdown("**Status**")
-                header_cols[3].markdown("**Menu / Item**")
-                header_cols[4].markdown("**Harga**")
-                header_cols[5].markdown("**Qty**")
-                header_cols[6].markdown("**Level**")
-                header_cols[7].markdown("**Catatan**")
-                header_cols[8].markdown("**Subtotal**")
-                header_cols[9].markdown("**Aksi**")
-                st.markdown("<hr style='margin: 4px 0px;'>", unsafe_allow_html=True)
-
-                for nama, items in grouped_by_person.items():
-                    menu_items = [i for i in items if i["nama_menu"] != "Biaya Jastip"]
+                for idx, m_item in enumerate(menu_items):
+                    harga_satuan_str = f"Rp {m_item['harga']:,}"
                     
-                    subtotal_murni_makanan = sum([i["harga"] * i["qty"] for i in menu_items])
-                    subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
-                    total_biaya_tgl += subtotal_orang_dengan_jastip
+                    display_no = str(no_urut) if idx == 0 else ""
+                    display_nama = nama if idx == 0 else ""
+                    
+                    is_last_item = (idx == len(menu_items) - 1)
+                    if is_last_item:
+                        subtotal_text = f"**Rp {subtotal_orang_dengan_jastip:,} (sdh jastip)**"
+                    else:
+                        subtotal_text = ""
 
-                    is_currently_lunas = items[0]["status_lunas"] == "Lunas" if items else False
-
-                    for idx, m_item in enumerate(menu_items):
-                        harga_satuan_str = f"Rp {m_item['harga']:,}"
-                        
-                        display_no = str(no_urut) if idx == 0 else ""
-                        display_nama = nama if idx == 0 else ""
-                        
-                        is_last_item = (idx == len(menu_items) - 1)
-                        if is_last_item:
-                            subtotal_text = f"**Rp {subtotal_orang_dengan_jastip:,} (sdh jastip)**"
-                        else:
-                            subtotal_text = ""
-
-                        row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
-                        row_cols[0].write(display_no)
-                        row_cols[1].write(display_nama)
-                        
-                        if idx == 0:
-                            with row_cols[2]:
-                                ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
-                                if ubah_lunas != is_currently_lunas:
-                                    status_str = "Lunas" if ubah_lunas else "Belum Lunas"
-                                    for item_grup in items:
-                                        cell = sheet_orders.find(str(item_grup['id']))
-                                        if cell:
-                                            sheet_orders.update_cell(cell.row, 9, status_str)
-                                    st.cache_data.clear()
-                                    st.rerun()
-                        else:
-                            row_cols[2].write("")
-
-                        row_cols[3].write(m_item["nama_menu"])
-                        row_cols[4].write(harga_satuan_str)
-                        row_cols[5].write(str(m_item["qty"]))
-                        row_cols[6].write(m_item["level"])
-                        row_cols[7].write(m_item["catatan"])
-                        row_cols[8].write(subtotal_text)
-                        
-                        with row_cols[9]:
-                            if st.button("❌", key=f"del_btn_{m_item['id']}"):
-                                cell = sheet_orders.find(str(m_item['id']))
-                                if cell:
-                                    sheet_orders.delete_rows(cell.row)
+                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+                    row_cols[0].write(display_no)
+                    row_cols[1].write(display_nama)
+                    
+                    if idx == 0:
+                        with row_cols[2]:
+                            ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
+                            if ubah_lunas != is_currently_lunas:
+                                status_str = "Lunas" if ubah_lunas else "Belum Lunas"
+                                for item_grup in items:
+                                    cell = sheet_orders.find(str(item_grup['id']))
+                                    if cell:
+                                        sheet_orders.update_cell(cell.row, 9, status_str)
                                 st.cache_data.clear()
                                 st.rerun()
+                    else:
+                        row_cols[2].write("")
 
-                    no_urut += 1
-                    st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
+                    row_cols[3].write(m_item["nama_menu"])
+                    row_cols[4].write(harga_satuan_str)
+                    row_cols[5].write(str(m_item["qty"]))
+                    row_cols[6].write(m_item["level"])
+                    row_cols[7].write(m_item["catatan"])
+                    row_cols[8].write(subtotal_text)
+                    
+                    with row_cols[9]:
+                        if st.button("❌", key=f"del_btn_{m_item['id']}"):
+                            cell = sheet_orders.find(str(m_item['id']))
+                            if cell:
+                                sheet_orders.delete_rows(cell.row)
+                            st.cache_data.clear()
+                            st.rerun()
 
-                st.markdown("---")
-                st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
-                
-                st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
-                
-                summary_menu = {}
-                for ord_data in orders_on_date:
-                    m_name = ord_data["nama_menu"]
-                    if m_name != "Biaya Jastip":
-                        m_qty = ord_data["qty"]
-                        m_pemesan = ord_data["nama_pemesan"]
-                        
-                        if m_name not in summary_menu:
-                            summary_menu[m_name] = {"total_qty": 0, "pemesan_list": []}
-                        
-                        summary_menu[m_name]["total_qty"] += m_qty
-                        summary_menu[m_name]["pemesan_list"].append(f"{m_pemesan} ({m_qty})")
-                
-                if summary_menu:
-                    sorted_summary_menu = sorted(summary_menu.items())
-                    for menu_name, data_val in sorted_summary_menu:
-                        gabungan_nama = ", ".join(data_val["pemesan_list"])
-                        st.write(f"- **{menu_name}**: total **{data_val['total_qty']} porsi** — *({gabungan_nama})*")
-                else:
-                    st.write("- Belum ada porsi jajanan makanan.")
-                
-                st.markdown("====================")
+                no_urut += 1
+                st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
 
-    # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
-    with tab_admin_menu:
-        st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu)")
-        st.info("💡 Centang menu jajanan di bawah ini yang ingin kamu aktifkan atau tampilkan agar bisa dipilih oleh member hari ini.")
-        
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            if st.button("✅ Pilih Semua Menu"):
-                for item in MENU_JAJANAN:
-                    st.session_state[f"toggle_menu_{item['id']}"] = True
-                st.rerun()
-        with col_btn2:
-            if st.button("❌ Kosongkan / Matikan Semua"):
-                for item in MENU_JAJANAN:
-                    st.session_state[f"toggle_menu_{item['id']}"] = False
-                st.rerun()
-
-        st.markdown("---")
-        
-        for item in MENU_JAJANAN:
-            key_name = f"toggle_menu_{item['id']}"
-            st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
-                
-        st.markdown("---")
-        if st.button("💾 Simpan Pengaturan Menu"):
-            new_active = []
-            for item in MENU_JAJANAN:
-                if st.session_state.get(f"toggle_menu_{item['id']}", False):
-                    new_active.append(item["id"])
+            st.markdown("---")
+            st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
             
-            # Simpan secara permanen ke Google Sheets (kolom config sistem)
-            try:
-                cell = sheet_orders.find("SYSTEM_CONFIG")
-                ids_str = ",".join(map(str, new_active))
-                if cell:
-                    sheet_orders.update_cell(cell.row, 8, ids_str) # Kolom catatan
-                else:
-                    sheet_orders.append_row([
-                        999999,
-                        str(datetime.date.today()),
-                        "SYSTEM_CONFIG",
-                        "ACTIVE_MENUS",
-                        0, 0, "-", ids_str, "-"
-                    ])
-            except Exception as e:
-                st.warning(f"Peringatan penyimpanan cloud: {e}")
+            st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
+            
+            summary_menu = {}
+            for ord_data in orders_on_date:
+                m_name = ord_data["nama_menu"]
+                if m_name != "Biaya Jastip":
+                    m_qty = ord_data["qty"]
+                    m_pemesan = ord_data["nama_pemesan"]
+                    
+                    if m_name not in summary_menu:
+                        summary_menu[m_name] = {"total_qty": 0, "pemesan_list": []}
+                    
+                    summary_menu[m_name]["total_qty"] += m_qty
+                    summary_menu[m_name]["pemesan_list"].append(f"{m_pemesan} ({m_qty})")
+            
+            if summary_menu:
+                sorted_summary_menu = sorted(summary_menu.items())
+                for menu_name, data_val in sorted_summary_menu:
+                    gabungan_nama = ", ".join(data_val["pemesan_list"])
+                    st.write(f"- **{menu_name}**: total **{data_val['total_qty']} porsi** — *({gabungan_nama})*")
+            else:
+                st.write("- Belum ada porsi jajanan makanan.")
+            
+            st.markdown("====================")
 
-            st.session_state.active_menu_ids = new_active
-            st.cache_data.clear()
-            st.success("✅ Pengaturan menu berhasil disimpan permanen ke database!")
+# ================= TAB 3: PANEL KONTROL MENU ADMIN =================
+def render_panel_kontrol():
+    st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu)")
+    st.info("💡 Centang menu jajanan di bawah ini yang ingin kamu aktifkan atau tampilkan agar bisa dipilih oleh member hari ini.")
+    
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("✅ Pilih Semua Menu"):
+            for item in MENU_JAJANAN:
+                st.session_state[f"toggle_menu_{item['id']}"] = True
             st.rerun()
+    with col_btn2:
+        if st.button("❌ Kosongkan / Matikan Semua"):
+            for item in MENU_JAJANAN:
+                st.session_state[f"toggle_menu_{item['id']}"] = False
+            st.rerun()
+
+    st.markdown("---")
+    
+    for item in MENU_JAJANAN:
+        key_name = f"toggle_menu_{item['id']}"
+        st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
+            
+    st.markdown("---")
+    if st.button("💾 Simpan Pengaturan Menu"):
+        new_active = []
+        for item in MENU_JAJANAN:
+            if st.session_state.get(f"toggle_menu_{item['id']}", False):
+                new_active.append(item["id"])
+        
+        try:
+            records = sheet_orders.get_all_records()
+            found_row = None
+            for idx, r in enumerate(records, start=2): # Mulai baris ke-2 (setelah header)
+                r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
+                if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
+                    found_row = idx
+                    break
+            
+            ids_str = ",".join(map(str, new_active))
+            if found_row:
+                sheet_orders.update_cell(found_row, 8, ids_str) # Kolom catatan
+            else:
+                sheet_orders.append_row([
+                    999999,
+                    str(datetime.date.today()),
+                    "SYSTEM_CONFIG",
+                    "ACTIVE_MENUS",
+                    0, 0, "-", ids_str, "-"
+                ])
+        except Exception as e:
+            st.warning(f"Peringatan penyimpanan cloud: {e}")
+
+        st.session_state.active_menu_ids = new_active
+        st.cache_data.clear()
+        st.success("✅ Pengaturan menu berhasil disimpan permanen ke database!")
+        st.rerun()
+
+# --- PENEMPATAN KONTEN KE DALAM TAB ---
+if is_admin:
+    with tab_form:
+        render_form_pesanan()
+    with tab_rekap:
+        render_master_rekap()
+    with tab_admin_menu:
+        render_panel_kontrol()
+else:
+    render_form_pesanan()
