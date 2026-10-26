@@ -27,7 +27,6 @@ def init_gspread():
 
 try:
     sh = init_gspread()
-    # Cuma pakai 1 sheet saja untuk semuanya
     sheet_orders = sh.worksheet("orders")
 except Exception as e:
     st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan tab 'orders' sudah ada! Error: {e}")
@@ -37,12 +36,6 @@ except Exception as e:
 @st.cache_data(ttl=10)
 def get_cached_orders():
     return sheet_orders.get_all_records()
-
-# --- INISIALISASI SESSION STATE ---
-if "current_cart" not in st.session_state:
-    st.session_state.current_cart = []
-if "show_payment_popup" not in st.session_state:
-    st.session_state.show_payment_popup = False
 
 # Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z)
 MENU_JAJANAN = [
@@ -90,6 +83,15 @@ MENU_JAJANAN = [
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
+# --- INISIALISASI SESSION STATE ---
+if "current_cart" not in st.session_state:
+    st.session_state.current_cart = []
+if "show_payment_popup" not in st.session_state:
+    st.session_state.show_payment_popup = False
+if "active_menu_ids" not in st.session_state:
+    # Default: Semua menu aktif (tercentang)
+    st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
+
 # Header Aplikasi
 st.title("🍜 Jajan Kuy - pengisian form jajan")
 st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
@@ -132,60 +134,62 @@ with tab_form:
     st.markdown("---")
     st.markdown(f"### 2. 🛒 Pilih Menu untuk Tanggal: {tanggal_jajan}")
 
-    # Ambil data dari 1 sheet saja ('orders')
     try:
         all_data_raw = get_cached_orders()
     except:
         all_data_raw = []
 
-    # Filter menu aktif atau ambil semua menu jika admin, atau tampilkan semua menu default agar member tetap bisa pesan tanpa ribet setting active_menu terpisah
-    available_menu = MENU_JAJANAN 
+    # Filter menu yang aktif berdasarkan pengaturan admin di Tab 3
+    available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
 
-    menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
-    selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
-
-    selected_idx = menu_options.index(selected_menu_str)
-    item_terpilih = available_menu[selected_idx]
-
-    if item_terpilih["tipe_menu"] == "varian":
-        pilihan_varian = st.selectbox(
-            "Pilih Varian Rasa / Jenis:", 
-            item_terpilih["varian"], 
-            format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
-        )
-        nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
-        harga_final = pilihan_varian["harga"]
+    if not available_menu:
+        st.warning("⚠️ Belum ada menu jajanan yang diaktifkan oleh Admin. Silakan buka menu **Panel Kontrol Menu** di mode Admin untuk mencentang menu yang ingin dibuka hari ini.")
     else:
-        if len(item_terpilih["pilihan_harga"]) > 1:
-            pilihan_harga_pilih = st.radio(
-                "Pilih Varian Harga:", 
-                item_terpilih["pilihan_harga"], 
-                format_func=lambda x: f"Rp {x:,}"
+        menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
+        selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
+
+        selected_idx = menu_options.index(selected_menu_str)
+        item_terpilih = available_menu[selected_idx]
+
+        if item_terpilih["tipe_menu"] == "varian":
+            pilihan_varian = st.selectbox(
+                "Pilih Varian Rasa / Jenis:", 
+                item_terpilih["varian"], 
+                format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
             )
+            nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
+            harga_final = pilihan_varian["harga"]
         else:
-            pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
-            st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
-        
-        nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
-        harga_final = pilihan_harga_pilih
+            if len(item_terpilih["pilihan_harga"]) > 1:
+                pilihan_harga_pilih = st.radio(
+                    "Pilih Varian Harga:", 
+                    item_terpilih["pilihan_harga"], 
+                    format_func=lambda x: f"Rp {x:,}"
+                )
+            else:
+                pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
+                st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
+            
+            nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
+            harga_final = pilihan_harga_pilih
 
-    col_qty, col_level = st.columns(2)
-    with col_qty:
-        jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
-    with col_level:
-        level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
+        col_qty, col_level = st.columns(2)
+        with col_qty:
+            jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
+        with col_level:
+            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
 
-    catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
+        catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
 
-    if st.button("➕ Tambah ke Daftar Pesanan Saya"):
-        st.session_state.current_cart.append({
-            "nama_menu": nama_pesanan_final,
-            "harga": harga_final,
-            "qty": jumlah_pesan,
-            "level": level_pedas,
-            "catatan": catatan_item if catatan_item else "-"
-        })
-        st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
+        if st.button("➕ Tambah ke Daftar Pesanan Saya"):
+            st.session_state.current_cart.append({
+                "nama_menu": nama_pesanan_final,
+                "harga": harga_final,
+                "qty": jumlah_pesan,
+                "level": level_pedas,
+                "catatan": catatan_item if catatan_item else "-"
+            })
+            st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
 
     st.markdown("---")
     st.markdown("### 🧾 Preview Pesanan Kamu")
@@ -219,7 +223,6 @@ with tab_form:
                 new_id = len(all_data_raw) + 1
 
                 for cart_item in st.session_state.current_cart:
-                    # Kolom di Google Sheet: id, tanggal, nama_pemesan, nama_menu, harga, qty, level, catatan, status_lunas
                     sheet_orders.append_row([
                         new_id,
                         str(tanggal_jajan),
@@ -229,7 +232,7 @@ with tab_form:
                         int(cart_item["qty"]),
                         cart_item["level"],
                         cart_item["catatan"],
-                        "Belum Lunas" # Status pembayaran langsung di baris yang sama!
+                        "Belum Lunas"
                     ])
                     new_id += 1
 
@@ -356,7 +359,6 @@ if is_admin:
                     subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                     total_biaya_tgl += subtotal_orang_dengan_jastip
 
-                    # Cek status lunas dari item pertama orang tersebut
                     is_currently_lunas = items[0]["status_lunas"] == "Lunas" if items else False
 
                     for idx, m_item in enumerate(menu_items):
@@ -380,11 +382,9 @@ if is_admin:
                                 ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
                                 if ubah_lunas != is_currently_lunas:
                                     status_str = "Lunas" if ubah_lunas else "Belum Lunas"
-                                    # Update status lunas di semua baris milik orang tersebut pada tanggal tersebut
                                     for item_grup in items:
                                         cell = sheet_orders.find(str(item_grup['id']))
                                         if cell:
-                                            # Kolom ke-9 adalah status_lunas
                                             sheet_orders.update_cell(cell.row, 9, status_str)
                                     st.cache_data.clear()
                                     st.rerun()
@@ -440,5 +440,30 @@ if is_admin:
     # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
     with tab_admin_menu:
         st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu)")
-        st.info("💡 Karena menggunakan 1 sheet tunggal, semua menu jajanan di atas sudah langsung terbuka secara otomatis untuk dipilih oleh member tanpa perlu setup rumit.")
-        st.write("Semua pesanan yang masuk akan otomatis tercatat rapi di Google Sheet `Database_Jastipsur` pada tab tunggal **`orders`**.")
+        st.info("💡 Centang menu jajanan di bawah ini yang ingin kamu aktifkan atau tampilkan agar bisa dipilih oleh member hari ini.")
+        
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            if st.button("✅ Pilih Semua Menu"):
+                st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
+                st.rerun()
+        with col_btn2:
+            if st.button("❌ Kosongkan / Matikan Semua"):
+                st.session_state.active_menu_ids = []
+                st.rerun()
+
+        st.markdown("---")
+        
+        temp_active_ids = []
+        for item in MENU_JAJANAN:
+            is_active = item["id"] in st.session_state.active_menu_ids
+            # Buat checkbox untuk setiap menu
+            checked = st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", value=is_active, key=f"toggle_menu_{item['id']}")
+            if checked:
+                temp_active_ids.append(item["id"])
+                
+        st.markdown("---")
+        if st.button("💾 Simpan Pengaturan Menu"):
+            st.session_state.active_menu_ids = temp_active_ids
+            st.success("✅ Pengaturan menu berhasil diperbarui! Menu yang tidak dicentang sekarang tidak akan muncul di form member.")
+            st.rerun()
