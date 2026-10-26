@@ -95,6 +95,12 @@ if "show_payment_popup" not in st.session_state:
 if "active_menu_ids" not in st.session_state:
     st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
 
+# Inisialisasi state checkbox menu admin
+for item in MENU_JAJANAN:
+    key_name = f"toggle_menu_{item['id']}"
+    if key_name not in st.session_state:
+        st.session_state[key_name] = item["id"] in st.session_state.active_menu_ids
+
 # Header Aplikasi
 st.title("🍜 Jajan Kuy - pengisian form jajan")
 st.subheader("sok gewat atuh nge list best and bro, pilih tanggal tong poho!")
@@ -294,7 +300,6 @@ if is_admin:
         except:
             orders_data_raw = []
         
-        # Normalisasi data agar aman dari perbedaan huruf besar/kecil pada header Google Sheets
         all_orders_db = []
         for r in orders_data_raw:
             r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
@@ -449,24 +454,29 @@ if is_admin:
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("✅ Pilih Semua Menu"):
+                for item in MENU_JAJANAN:
+                    st.session_state[f"toggle_menu_{item['id']}"] = True
                 st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
                 st.rerun()
         with col_btn2:
             if st.button("❌ Kosongkan / Matikan Semua"):
+                for item in MENU_JAJANAN:
+                    st.session_state[f"toggle_menu_{item['id']}"] = False
                 st.session_state.active_menu_ids = []
                 st.rerun()
 
         st.markdown("---")
         
-        temp_active_ids = []
         for item in MENU_JAJANAN:
-            is_active = item["id"] in st.session_state.active_menu_ids
-            checked = st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", value=is_active, key=f"toggle_menu_{item['id']}")
-            if checked:
-                temp_active_ids.append(item["id"])
+            key_name = f"toggle_menu_{item['id']}"
+            st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
                 
         st.markdown("---")
         if st.button("💾 Simpan Pengaturan Menu"):
-            st.session_state.active_menu_ids = temp_active_ids
+            new_active = []
+            for item in MENU_JAJANAN:
+                if st.session_state.get(f"toggle_menu_{item['id']}", False):
+                    new_active.append(item["id"])
+            st.session_state.active_menu_ids = new_active
             st.success("✅ Pengaturan menu berhasil diperbarui! Menu yang tidak dicentang sekarang tidak akan muncul di form member.")
             st.rerun()
