@@ -87,13 +87,28 @@ MENU_JAJANAN = [
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
+# --- FUNGSI LOAD & SAVE CONFIG MENU KE GOOGLE SHEETS ---
+def load_active_menu_from_sheet():
+    try:
+        records = sheet_orders.get_all_records()
+        for r in records:
+            r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
+            if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG" and str(r_lower.get("nama_menu")) == "ACTIVE_MENUS":
+                catatan_str = str(r_lower.get("catatan", ""))
+                if catatan_str:
+                    return [int(x.strip()) for x in catatan_str.split(",") if x.strip().isdigit()]
+    except:
+        pass
+    # Default jika belum ada settingan tersimpan: aktifkan semua
+    return [item["id"] for item in MENU_JAJANAN]
+
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
     st.session_state.current_cart = []
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 if "active_menu_ids" not in st.session_state:
-    st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
+    st.session_state.active_menu_ids = load_active_menu_from_sheet()
 
 # Inisialisasi state checkbox menu admin
 for item in MENU_JAJANAN:
@@ -303,6 +318,9 @@ if is_admin:
         all_orders_db = []
         for r in orders_data_raw:
             r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
+            # Abaikan baris config sistem agar tidak tampil di rekap keuangan
+            if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
+                continue
             if r_lower.get("id") != "" and r_lower.get("id") is not None:
                 try:
                     all_orders_db.append({
@@ -323,6 +341,7 @@ if is_admin:
             st.info("Belum ada data pesanan yang masuk di Google Sheet.")
         else:
             if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
+                # Pertahankan baris config jika ada, atau reset tapi buat ulang
                 sheet_orders.clear()
                 sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
                 st.cache_data.clear()
@@ -456,13 +475,11 @@ if is_admin:
             if st.button("✅ Pilih Semua Menu"):
                 for item in MENU_JAJANAN:
                     st.session_state[f"toggle_menu_{item['id']}"] = True
-                st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
                 st.rerun()
         with col_btn2:
             if st.button("❌ Kosongkan / Matikan Semua"):
                 for item in MENU_JAJANAN:
                     st.session_state[f"toggle_menu_{item['id']}"] = False
-                st.session_state.active_menu_ids = []
                 st.rerun()
 
         st.markdown("---")
@@ -477,6 +494,25 @@ if is_admin:
             for item in MENU_JAJANAN:
                 if st.session_state.get(f"toggle_menu_{item['id']}", False):
                     new_active.append(item["id"])
+            
+            # Simpan secara permanen ke Google Sheets (kolom config sistem)
+            try:
+                cell = sheet_orders.find("SYSTEM_CONFIG")
+                ids_str = ",".join(map(str, new_active))
+                if cell:
+                    sheet_orders.update_cell(cell.row, 8, ids_str) # Kolom catatan
+                else:
+                    sheet_orders.append_row([
+                        999999,
+                        str(datetime.date.today()),
+                        "SYSTEM_CONFIG",
+                        "ACTIVE_MENUS",
+                        0, 0, "-", ids_str, "-"
+                    ])
+            except Exception as e:
+                st.warning(f"Peringatan penyimpanan cloud: {e}")
+
             st.session_state.active_menu_ids = new_active
-            st.success("✅ Pengaturan menu berhasil diperbarui! Menu yang tidak dicentang sekarang tidak akan muncul di form member.")
+            st.cache_data.clear()
+            st.success("✅ Pengaturan menu berhasil disimpan permanen ke database!")
             st.rerun()
