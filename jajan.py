@@ -212,7 +212,6 @@ def render_form_pesanan():
     """
     components.html(countdown_html, height=65)
 
-    # Validasi waktu di sisi server (WIB) untuk non-admin
     wib_tz = datetime.timezone(datetime.timedelta(hours=7))
     now_wib = datetime.datetime.now(wib_tz)
     target_dt_wib = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu).replace(tzinfo=wib_tz)
@@ -498,7 +497,8 @@ def render_master_rekap():
                     row_cols[8].write(subtotal_text)
                     
                     with row_cols[9]:
-                        if st.button("❌", key=f"del_btn_{m_item['id']}"):
+                        # PERBAIKAN: Key delete dibuat unik menggunakan gabungan tanggal, nama, index, dan ID
+                        if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
                             cell = sheet_orders.find(str(m_item['id']))
                             if cell:
                                 sheet_orders.delete_rows(cell.row)
