@@ -92,21 +92,28 @@ MENU_JAJANAN = [
 
 # --- FUNGSI LOAD & SAVE CONFIG LOKAL (JSON) ---
 def load_system_config():
+    default_time = datetime.time(20, 0) # Default jam 8 malam
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
                 data = json.load(f)
                 tgl = datetime.datetime.strptime(data.get("tanggal", str(datetime.date.today())), "%Y-%m-%d").date()
                 ids = data.get("active_ids", [item["id"] for item in MENU_JAJANAN])
-                return tgl, ids
+                time_str = data.get("batas_waktu", "20:00:00")
+                b_time = datetime.datetime.strptime(time_str, "%H:%M:%S").time()
+                return tgl, ids, b_time
         except:
             pass
-    return datetime.date.today(), [item["id"] for item in MENU_JAJANAN]
+    return datetime.date.today(), [item["id"] for item in MENU_JAJANAN], default_time
 
-def save_system_config(tgl, ids):
+def save_system_config(tgl, ids, b_time):
     try:
         with open(CONFIG_FILE, "w") as f:
-            json.dump({"tanggal": str(tgl), "active_ids": ids}, f)
+            json.dump({
+                "tanggal": str(tgl), 
+                "active_ids": ids,
+                "batas_waktu": b_time.strftime("%H:%M:%S")
+            }, f)
     except Exception as e:
         st.warning(f"Gagal menyimpan config lokal: {e}")
 
@@ -116,11 +123,13 @@ if "current_cart" not in st.session_state:
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 
-saved_tgl, saved_ids = load_system_config()
+saved_tgl, saved_ids, saved_time = load_system_config()
 if "active_menu_date" not in st.session_state:
     st.session_state.active_menu_date = saved_tgl
 if "active_menu_ids" not in st.session_state:
     st.session_state.active_menu_ids = saved_ids
+if "active_batas_waktu" not in st.session_state:
+    st.session_state.active_batas_waktu = saved_time
 
 for item in MENU_JAJANAN:
     key_name = f"toggle_menu_{item['id']}"
@@ -160,6 +169,20 @@ def render_form_pesanan():
     if is_admin:
         st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member (Bebas akses)")
     
+    # Hitung Countdown / Batas Waktu Pesanan
+    now = datetime.datetime.now()
+    target_datetime = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu)
+    time_diff = target_datetime - now
+    
+    # Tampilkan info countdown di atas form
+    if time_diff.total_seconds() > 0:
+        hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
+        minutes, seconds = divmod(remainder, 60)
+        st.info(f"⏳ **Batas Waktu Pemesanan untuk Tanggal {st.session_state.active_menu_date}:** Sisa waktu **{hours} jam {minutes} menit lagi** (Pukul {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB)")
+    else:
+        if not is_admin:
+            st.error(f"⏰ **Waktu pemesanan untuk tanggal {st.session_state.active_menu_date} telah ditutup!** (Batas waktu: {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB)")
+
     st.markdown("### 1. 📋 Identitas & Tanggal Jajan")
     col_nama, col_tgl = st.columns(2)
     
@@ -170,9 +193,10 @@ def render_form_pesanan():
 
     st.markdown("---")
     
-    # Validasi tanggal aktif dari admin
-    if tanggal_jajan != st.session_state.active_menu_date and not is_admin:
-        st.warning(f"⚠️ Menu jastip untuk tanggal **{st.session_state.active_menu_date}** belum dibuka atau tanggal pilihan kamu berbeda dengan jadwal aktif admin.")
+    # Cek apakah waktu sudah lewat atau tanggal berbeda (khusus member)
+    is_expired = (time_diff.total_seconds() <= 0) and not is_admin
+    if (tanggal_jajan != st.session_state.active_menu_date and not is_admin) or is_expired:
+        st.warning(f"⚠️ Form pemesanan ditutup. Jadwal aktif saat ini adalah tanggal **{st.session_state.active_menu_date}** (Batas pukul {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB).")
         available_menu = []
     else:
         available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
@@ -185,7 +209,7 @@ def render_form_pesanan():
         all_data_raw = []
 
     if not available_menu:
-        st.warning("⚠️ Belum ada menu jajanan yang diaktifkan atau tanggal pesanan tidak cocok dengan jadwal admin.")
+        st.warning("⚠️ Belum ada menu jajanan yang diaktifkan atau waktu pemesanan sudah berakhir.")
     else:
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
@@ -481,10 +505,14 @@ def render_master_rekap():
 
 # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
 def render_panel_kontrol():
-    st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu & Tanggal)")
-    st.info("💡 Tentukan tanggal aktif jastip dan centang menu jajanan yang ingin dibuka untuk tanggal tersebut.")
+    st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Jadwal & Menu)")
+    st.info("💡 Atur tanggal, batas waktu tutup pesanan, dan centang menu jajanan yang ingin dibuka.")
     
-    selected_control_date = st.date_input("📅 Set Tanggal Jajan Aktif untuk Member:", value=st.session_state.active_menu_date, key="control_date_input")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        selected_control_date = st.date_input("📅 Set Tanggal Jajan Aktif:", value=st.session_state.active_menu_date, key="control_date_input")
+    with col_c2:
+        selected_control_time = st.time_input("⏰ Set Batas Jam Tutup Order:", value=st.session_state.active_batas_waktu, key="control_time_input")
 
     st.markdown("---")
     col_btn1, col_btn2 = st.columns(2)
@@ -506,19 +534,20 @@ def render_panel_kontrol():
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
             
     st.markdown("---")
-    if st.button("💾 Simpan Pengaturan Tanggal & Menu"):
+    if st.button("💾 Simpan Pengaturan Jadwal & Menu"):
         new_active = []
         for item in MENU_JAJANAN:
             if st.session_state.get(f"toggle_menu_{item['id']}", False):
                 new_active.append(item["id"])
         
-        # Simpan ke file lokal JSON agar tidak hilang saat di-refresh atau di-reset spreadsheetnya
-        save_system_config(selected_control_date, new_active)
+        # Simpan ke file config lokal JSON
+        save_system_config(selected_control_date, new_active, selected_control_time)
 
         st.session_state.active_menu_date = selected_control_date
+        st.session_state.active_batas_waktu = selected_control_time
         st.session_state.active_menu_ids = new_active
         st.cache_data.clear()
-        st.success("✅ Tanggal dan pengaturan menu berhasil disimpan permanen!")
+        st.success("✅ Tanggal, batas waktu, dan pengaturan menu berhasil disimpan permanen!")
         st.rerun()
 
 # --- PENEMPATAN KONTEN KE DALAM TAB ---
