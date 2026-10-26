@@ -4,6 +4,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 import streamlit.components.v1 as components
 import pandas as pd
+import json
+import os
 
 # Konfigurasi halaman
 st.set_page_config(
@@ -11,6 +13,8 @@ st.set_page_config(
     page_icon="🍜",
     layout="wide"
 )
+
+CONFIG_FILE = "config_menu.json"
 
 # --- SETUP KONEKSI GOOGLE SHEETS (HANYA 1 SHEET: 'orders') ---
 @st.cache_resource
@@ -86,22 +90,25 @@ MENU_JAJANAN = [
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
-# --- FUNGSI LOAD & SAVE CONFIG MENU DAN TANGGAL KE GOOGLE SHEETS ---
+# --- FUNGSI LOAD & SAVE CONFIG LOKAL (JSON) ---
 def load_system_config():
-    try:
-        records = sheet_orders.get_all_records()
-        for r in records:
-            r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
-            if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG" and str(r_lower.get("nama_menu")) == "ACTIVE_MENUS":
-                tgl_str = str(r_lower.get("tanggal", str(datetime.date.today())))
-                catatan_str = str(r_lower.get("catatan", ""))
-                
-                config_tgl = datetime.datetime.strptime(tgl_str, "%Y-%m-%d").date() if tgl_str else datetime.date.today()
-                config_ids = [int(x.strip()) for x in catatan_str.split(",") if x.strip().isdigit()] if catatan_str else [item["id"] for item in MENU_JAJANAN]
-                return config_tgl, config_ids
-    except:
-        pass
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, "r") as f:
+                data = json.load(f)
+                tgl = datetime.datetime.strptime(data.get("tanggal", str(datetime.date.today())), "%Y-%m-%d").date()
+                ids = data.get("active_ids", [item["id"] for item in MENU_JAJANAN])
+                return tgl, ids
+        except:
+            pass
     return datetime.date.today(), [item["id"] for item in MENU_JAJANAN]
+
+def save_system_config(tgl, ids):
+    try:
+        with open(CONFIG_FILE, "w") as f:
+            json.dump({"tanggal": str(tgl), "active_ids": ids}, f)
+    except Exception as e:
+        st.warning(f"Gagal menyimpan config lokal: {e}")
 
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
@@ -109,7 +116,6 @@ if "current_cart" not in st.session_state:
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 
-# Load config awal dari cloud/database
 saved_tgl, saved_ids = load_system_config()
 if "active_menu_date" not in st.session_state:
     st.session_state.active_menu_date = saved_tgl
@@ -164,9 +170,9 @@ def render_form_pesanan():
 
     st.markdown("---")
     
-    # Validasi apakah tanggal yang dipilih member sesuai dengan tanggal yang diset admin di Panel Kontrol
+    # Validasi tanggal aktif dari admin
     if tanggal_jajan != st.session_state.active_menu_date and not is_admin:
-        st.warning(f"⚠️ Menu jastip untuk tanggal **{st.session_state.active_menu_date}** belum dibuka atau tanggal yang kamu pilih berbeda dengan jadwal aktif admin.")
+        st.warning(f"⚠️ Menu jastip untuk tanggal **{st.session_state.active_menu_date}** belum dibuka atau tanggal pilihan kamu berbeda dengan jadwal aktif admin.")
         available_menu = []
     else:
         available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
@@ -330,8 +336,6 @@ def render_master_rekap():
     all_orders_db = []
     for r in orders_data_raw:
         r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
-        if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
-            continue
         if r_lower.get("nama_pemesan") and r_lower.get("nama_menu"):
             try:
                 all_orders_db.append({
@@ -480,7 +484,6 @@ def render_panel_kontrol():
     st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu & Tanggal)")
     st.info("💡 Tentukan tanggal aktif jastip dan centang menu jajanan yang ingin dibuka untuk tanggal tersebut.")
     
-    # Tanggal Aktif Jastip oleh Admin
     selected_control_date = st.date_input("📅 Set Tanggal Jajan Aktif untuk Member:", value=st.session_state.active_menu_date, key="control_date_input")
 
     st.markdown("---")
@@ -509,29 +512,8 @@ def render_panel_kontrol():
             if st.session_state.get(f"toggle_menu_{item['id']}", False):
                 new_active.append(item["id"])
         
-        try:
-            records = sheet_orders.get_all_records()
-            found_row = None
-            for idx, r in enumerate(records, start=2):
-                r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
-                if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
-                    found_row = idx
-                    break
-            
-            ids_str = ",".join(map(str, new_active))
-            if found_row:
-                sheet_orders.update_cell(found_row, 2, str(selected_control_date)) # Kolom tanggal
-                sheet_orders.update_cell(found_row, 8, ids_str) # Kolom catatan
-            else:
-                sheet_orders.append_row([
-                    999999,
-                    str(selected_control_date),
-                    "SYSTEM_CONFIG",
-                    "ACTIVE_MENUS",
-                    0, 0, "-", ids_str, "-"
-                ])
-        except Exception as e:
-            st.warning(f"Peringatan penyimpanan cloud: {e}")
+        # Simpan ke file lokal JSON agar tidak hilang saat di-refresh atau di-reset spreadsheetnya
+        save_system_config(selected_control_date, new_active)
 
         st.session_state.active_menu_date = selected_control_date
         st.session_state.active_menu_ids = new_active
