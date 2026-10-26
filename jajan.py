@@ -40,7 +40,7 @@ except Exception as e:
     st.stop()
 
 # --- FUNGSI CACHE DATA RECORDS (TTL 60 Detik agar terhindar dari Error 429) ---
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=300)
 def get_cached_orders():
     return sheet_orders.get_all_records()
 
