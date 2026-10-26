@@ -29,7 +29,6 @@ try:
     sh = init_gspread()
     sheet_orders = sh.worksheet("orders")
     
-    # Auto-inisialisasi header jika sheet masih benar-benar kosong
     if len(sheet_orders.get_all_values()) == 0:
         sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
 except Exception as e:
@@ -87,27 +86,35 @@ MENU_JAJANAN = [
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
-# --- FUNGSI LOAD & SAVE CONFIG MENU KE GOOGLE SHEETS ---
-def load_active_menu_from_sheet():
+# --- FUNGSI LOAD & SAVE CONFIG MENU DAN TANGGAL KE GOOGLE SHEETS ---
+def load_system_config():
     try:
         records = sheet_orders.get_all_records()
         for r in records:
             r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
             if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG" and str(r_lower.get("nama_menu")) == "ACTIVE_MENUS":
+                tgl_str = str(r_lower.get("tanggal", str(datetime.date.today())))
                 catatan_str = str(r_lower.get("catatan", ""))
-                if catatan_str:
-                    return [int(x.strip()) for x in catatan_str.split(",") if x.strip().isdigit()]
+                
+                config_tgl = datetime.datetime.strptime(tgl_str, "%Y-%m-%d").date() if tgl_str else datetime.date.today()
+                config_ids = [int(x.strip()) for x in catatan_str.split(",") if x.strip().isdigit()] if catatan_str else [item["id"] for item in MENU_JAJANAN]
+                return config_tgl, config_ids
     except:
         pass
-    return [item["id"] for item in MENU_JAJANAN]
+    return datetime.date.today(), [item["id"] for item in MENU_JAJANAN]
 
 # --- INISIALISASI SESSION STATE ---
 if "current_cart" not in st.session_state:
     st.session_state.current_cart = []
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
+
+# Load config awal dari cloud/database
+saved_tgl, saved_ids = load_system_config()
+if "active_menu_date" not in st.session_state:
+    st.session_state.active_menu_date = saved_tgl
 if "active_menu_ids" not in st.session_state:
-    st.session_state.active_menu_ids = load_active_menu_from_sheet()
+    st.session_state.active_menu_ids = saved_ids
 
 for item in MENU_JAJANAN:
     key_name = f"toggle_menu_{item['id']}"
@@ -134,11 +141,10 @@ if mode_akses == "Admin (Surya)":
     else:
         st.sidebar.warning("⚠️ Masukkan password admin yang benar.")
 
-# --- RENDER KONTEN BERDASARKAN PERAN DENGAN STRUKTUR TAB YANG BENAR ---
+# --- RENDER KONTEN BERDASARKAN PERAN ---
 if is_admin:
     tab_form, tab_rekap, tab_admin_menu = st.tabs(["📝 Form Pesanan", "📊 Master Rekap Gabungan", "🛠️ Panel Kontrol Menu"])
 else:
-    # Untuk member, buat wadah tunggal tanpa tab admin
     tab_form = st.container()
     tab_rekap = None
     tab_admin_menu = None
@@ -157,6 +163,14 @@ def render_form_pesanan():
         tanggal_jajan = st.date_input("Tanggal Jajan:", value=datetime.date.today(), key="member_tgl")
 
     st.markdown("---")
+    
+    # Validasi apakah tanggal yang dipilih member sesuai dengan tanggal yang diset admin di Panel Kontrol
+    if tanggal_jajan != st.session_state.active_menu_date and not is_admin:
+        st.warning(f"⚠️ Menu jastip untuk tanggal **{st.session_state.active_menu_date}** belum dibuka atau tanggal yang kamu pilih berbeda dengan jadwal aktif admin.")
+        available_menu = []
+    else:
+        available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
+
     st.markdown(f"### 2. 🛒 Pilih Menu untuk Tanggal: {tanggal_jajan}")
 
     try:
@@ -164,10 +178,8 @@ def render_form_pesanan():
     except:
         all_data_raw = []
 
-    available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
-
     if not available_menu:
-        st.warning("⚠️ Belum ada menu jajanan yang diaktifkan oleh Admin. Silakan buka menu **Panel Kontrol Menu** di mode Admin untuk mencentang menu yang ingin dibuka hari ini.")
+        st.warning("⚠️ Belum ada menu jajanan yang diaktifkan atau tanggal pesanan tidak cocok dengan jadwal admin.")
     else:
         menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
         selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
@@ -465,9 +477,13 @@ def render_master_rekap():
 
 # ================= TAB 3: PANEL KONTROL MENU ADMIN =================
 def render_panel_kontrol():
-    st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu)")
-    st.info("💡 Centang menu jajanan di bawah ini yang ingin kamu aktifkan atau tampilkan agar bisa dipilih oleh member hari ini.")
+    st.markdown("## 🛠️ Panel Kontrol Admin (Pengaturan Menu & Tanggal)")
+    st.info("💡 Tentukan tanggal aktif jastip dan centang menu jajanan yang ingin dibuka untuk tanggal tersebut.")
     
+    # Tanggal Aktif Jastip oleh Admin
+    selected_control_date = st.date_input("📅 Set Tanggal Jajan Aktif untuk Member:", value=st.session_state.active_menu_date, key="control_date_input")
+
+    st.markdown("---")
     col_btn1, col_btn2 = st.columns(2)
     with col_btn1:
         if st.button("✅ Pilih Semua Menu"):
@@ -487,7 +503,7 @@ def render_panel_kontrol():
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
             
     st.markdown("---")
-    if st.button("💾 Simpan Pengaturan Menu"):
+    if st.button("💾 Simpan Pengaturan Tanggal & Menu"):
         new_active = []
         for item in MENU_JAJANAN:
             if st.session_state.get(f"toggle_menu_{item['id']}", False):
@@ -496,7 +512,7 @@ def render_panel_kontrol():
         try:
             records = sheet_orders.get_all_records()
             found_row = None
-            for idx, r in enumerate(records, start=2): # Mulai baris ke-2 (setelah header)
+            for idx, r in enumerate(records, start=2):
                 r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
                 if str(r_lower.get("nama_pemesan")) == "SYSTEM_CONFIG":
                     found_row = idx
@@ -504,11 +520,12 @@ def render_panel_kontrol():
             
             ids_str = ",".join(map(str, new_active))
             if found_row:
+                sheet_orders.update_cell(found_row, 2, str(selected_control_date)) # Kolom tanggal
                 sheet_orders.update_cell(found_row, 8, ids_str) # Kolom catatan
             else:
                 sheet_orders.append_row([
                     999999,
-                    str(datetime.date.today()),
+                    str(selected_control_date),
                     "SYSTEM_CONFIG",
                     "ACTIVE_MENUS",
                     0, 0, "-", ids_str, "-"
@@ -516,9 +533,10 @@ def render_panel_kontrol():
         except Exception as e:
             st.warning(f"Peringatan penyimpanan cloud: {e}")
 
+        st.session_state.active_menu_date = selected_control_date
         st.session_state.active_menu_ids = new_active
         st.cache_data.clear()
-        st.success("✅ Pengaturan menu berhasil disimpan permanen ke database!")
+        st.success("✅ Tanggal dan pengaturan menu berhasil disimpan permanen!")
         st.rerun()
 
 # --- PENEMPATAN KONTEN KE DALAM TAB ---
