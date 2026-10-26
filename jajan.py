@@ -28,6 +28,10 @@ def init_gspread():
 try:
     sh = init_gspread()
     sheet_orders = sh.worksheet("orders")
+    
+    # Auto-inisialisasi header jika sheet masih benar-benar kosong
+    if len(sheet_orders.get_all_values()) == 0:
+        sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
 except Exception as e:
     st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan tab 'orders' sudah ada! Error: {e}")
     st.stop()
@@ -89,7 +93,6 @@ if "current_cart" not in st.session_state:
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 if "active_menu_ids" not in st.session_state:
-    # Default: Semua menu aktif (tercentang)
     st.session_state.active_menu_ids = [item["id"] for item in MENU_JAJANAN]
 
 # Header Aplikasi
@@ -139,7 +142,6 @@ with tab_form:
     except:
         all_data_raw = []
 
-    # Filter menu yang aktif berdasarkan pengaturan admin di Tab 3
     available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
 
     if not available_menu:
@@ -292,7 +294,27 @@ if is_admin:
         except:
             orders_data_raw = []
         
-        if not orders_data_raw:
+        # Normalisasi data agar aman dari perbedaan huruf besar/kecil pada header Google Sheets
+        all_orders_db = []
+        for r in orders_data_raw:
+            r_lower = {str(k).lower().strip().replace(" ", "_"): v for k, v in r.items() if k is not None}
+            if r_lower.get("id") != "" and r_lower.get("id") is not None:
+                try:
+                    all_orders_db.append({
+                        "id": int(r_lower.get("id", 0)),
+                        "tanggal": str(r_lower.get("tanggal", "")),
+                        "nama_pemesan": str(r_lower.get("nama_pemesan", "")),
+                        "nama_menu": str(r_lower.get("nama_menu", "")),
+                        "harga": int(r_lower.get("harga", 0)),
+                        "qty": int(r_lower.get("qty", 0)),
+                        "level": str(r_lower.get("level", "")),
+                        "catatan": str(r_lower.get("catatan", "")),
+                        "status_lunas": str(r_lower.get("status_lunas", "Belum Lunas"))
+                    })
+                except:
+                    pass
+
+        if not all_orders_db:
             st.info("Belum ada data pesanan yang masuk di Google Sheet.")
         else:
             if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
@@ -303,24 +325,6 @@ if is_admin:
 
             st.markdown("---")
             
-            all_orders_db = []
-            for r in orders_data_raw:
-                if r.get("id") != "" and r.get("id") is not None:
-                    try:
-                        all_orders_db.append({
-                            "id": int(r.get("id", 0)),
-                            "tanggal": str(r.get("tanggal", "")),
-                            "nama_pemesan": str(r.get("nama_pemesan", "")),
-                            "nama_menu": str(r.get("nama_menu", "")),
-                            "harga": int(r.get("harga", 0)),
-                            "qty": int(r.get("qty", 0)),
-                            "level": str(r.get("level", "")),
-                            "catatan": str(r.get("catatan", "")),
-                            "status_lunas": str(r.get("status_lunas", "Belum Lunas"))
-                        })
-                    except:
-                        pass
-
             unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
 
             for tgl in unique_dates:
@@ -457,7 +461,6 @@ if is_admin:
         temp_active_ids = []
         for item in MENU_JAJANAN:
             is_active = item["id"] in st.session_state.active_menu_ids
-            # Buat checkbox untuk setiap menu
             checked = st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", value=is_active, key=f"toggle_menu_{item['id']}")
             if checked:
                 temp_active_ids.append(item["id"])
