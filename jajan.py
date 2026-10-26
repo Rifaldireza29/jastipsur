@@ -39,8 +39,8 @@ except Exception as e:
     st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan tab 'orders' sudah ada! Error: {e}")
     st.stop()
 
-# --- FUNGSI CACHE DATA RECORDS (TTL 10 Detik) ---
-@st.cache_data(ttl=10)
+# --- FUNGSI CACHE DATA RECORDS (TTL 60 Detik agar terhindar dari Error 429) ---
+@st.cache_data(ttl=60)
 def get_cached_orders():
     return sheet_orders.get_all_records()
 
