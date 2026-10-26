@@ -92,7 +92,7 @@ MENU_JAJANAN = [
 
 # --- FUNGSI LOAD & SAVE CONFIG LOKAL (JSON) ---
 def load_system_config():
-    default_time = datetime.time(20, 0) # Default jam 8 malam
+    default_time = datetime.time(20, 0)
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
@@ -169,19 +169,54 @@ def render_form_pesanan():
     if is_admin:
         st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member (Bebas akses)")
     
-    # Hitung Countdown / Batas Waktu Pesanan
-    now = datetime.datetime.now()
-    target_datetime = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu)
-    time_diff = target_datetime - now
+    # --- LIVE COUNTDOWN ANIMATION (WIB / UTC+07:00) ---
+    target_iso = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu).isoformat()
+    formatted_time_str = st.session_state.active_batas_waktu.strftime('%H:%M')
     
-    # Tampilkan info countdown di atas form
-    if time_diff.total_seconds() > 0:
-        hours, remainder = divmod(int(time_diff.total_seconds()), 3600)
-        minutes, seconds = divmod(remainder, 60)
-        st.info(f"⏳ **Batas Waktu Pemesanan untuk Tanggal {st.session_state.active_menu_date}:** Sisa waktu **{hours} jam {minutes} menit lagi** (Pukul {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB)")
-    else:
-        if not is_admin:
-            st.error(f"⏰ **Waktu pemesanan untuk tanggal {st.session_state.active_menu_date} telah ditutup!** (Batas waktu: {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB)")
+    countdown_html = f"""
+    <div style="padding: 12px 16px; background-color: #e8f4fd; border-radius: 8px; border-left: 5px solid #1f77b4; font-family: sans-serif; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+        <div>
+            <span style="font-weight: bold; color: #1f77b4;">⏳ Batas Waktu Pemesanan ({st.session_state.active_menu_date}):</span>
+            <span id="countdown" style="font-weight: bold; color: #d9534f; margin-left: 8px; font-size: 1.1em;">Menghitung waktu...</span>
+        </div>
+        <div style="color: #555; font-size: 0.9em;">
+            (Pukul {formatted_time_str} WIB)
+        </div>
+    </div>
+
+    <script>
+    const targetDate = new Date("{target_iso}+07:00").getTime();
+
+    function updateCountdown() {{
+        const now = new Date().getTime();
+        const distance = targetDate - now;
+
+        const countdownElement = document.getElementById("countdown");
+
+        if (distance < 0) {{
+            countdownElement.innerHTML = "Waktu Pemesanan Telah Ditutup!";
+            countdownElement.style.color = "red";
+            return;
+        }}
+
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        countdownElement.innerHTML = hours + " jam " + minutes + " menit " + seconds + " detik lagi";
+    }}
+
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+    </script>
+    """
+    components.html(countdown_html, height=65)
+
+    # Validasi waktu di sisi server (WIB) untuk non-admin
+    wib_tz = datetime.timezone(datetime.timedelta(hours=7))
+    now_wib = datetime.datetime.now(wib_tz)
+    target_dt_wib = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu).replace(tzinfo=wib_tz)
+    is_expired = (now_wib >= target_dt_wib) and not is_admin
 
     st.markdown("### 1. 📋 Identitas & Tanggal Jajan")
     col_nama, col_tgl = st.columns(2)
@@ -193,10 +228,8 @@ def render_form_pesanan():
 
     st.markdown("---")
     
-    # Cek apakah waktu sudah lewat atau tanggal berbeda (khusus member)
-    is_expired = (time_diff.total_seconds() <= 0) and not is_admin
     if (tanggal_jajan != st.session_state.active_menu_date and not is_admin) or is_expired:
-        st.warning(f"⚠️ Form pemesanan ditutup. Jadwal aktif saat ini adalah tanggal **{st.session_state.active_menu_date}** (Batas pukul {st.session_state.active_batas_waktu.strftime('%H:%M')} WIB).")
+        st.warning(f"⚠️ Form pemesanan ditutup atau tanggal berbeda. Jadwal aktif saat ini adalah tanggal **{st.session_state.active_menu_date}** (Batas pukul {formatted_time_str} WIB).")
         available_menu = []
     else:
         available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
@@ -512,7 +545,7 @@ def render_panel_kontrol():
     with col_c1:
         selected_control_date = st.date_input("📅 Set Tanggal Jajan Aktif:", value=st.session_state.active_menu_date, key="control_date_input")
     with col_c2:
-        selected_control_time = st.time_input("⏰ Set Batas Jam Tutup Order:", value=st.session_state.active_batas_waktu, key="control_time_input")
+        selected_control_time = st.time_input("⏰ Set Batas Jam Tutup Order (WIB):", value=st.session_state.active_batas_waktu, key="control_time_input")
 
     st.markdown("---")
     col_btn1, col_btn2 = st.columns(2)
@@ -540,14 +573,13 @@ def render_panel_kontrol():
             if st.session_state.get(f"toggle_menu_{item['id']}", False):
                 new_active.append(item["id"])
         
-        # Simpan ke file config lokal JSON
         save_system_config(selected_control_date, new_active, selected_control_time)
 
         st.session_state.active_menu_date = selected_control_date
         st.session_state.active_batas_waktu = selected_control_time
         st.session_state.active_menu_ids = new_active
         st.cache_data.clear()
-        st.success("✅ Tanggal, batas waktu, dan pengaturan menu berhasil disimpan permanen!")
+        st.success("✅ Tanggal, batas waktu (WIB), dan pengaturan menu berhasil disimpan permanen!")
         st.rerun()
 
 # --- PENEMPATAN KONTEN KE DALAM TAB ---
