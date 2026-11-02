@@ -394,11 +394,11 @@ def render_form_pesanan():
             st.session_state.show_payment_popup = False
             st.rerun()
 
-# ================= TAB 2: MASTER REKAP GABUNGAN (KHUSUS ADMIN) =================
+# ================= TAB 2: MASTER REKAP GABUNGAN (KHUSUS ADMIN DENGAN FILTER TANGGAL) =================
 def render_master_rekap():
     col_title, col_btn = st.columns([3, 1])
     with col_title:
-        st.markdown("### 📊 Rekapitulasi Gabungan Seluruh Pesanan (Eksklusif Admin)")
+        st.markdown("### 📊 Rekapitulasi Pesanan (Eksklusif Admin)")
     with col_btn:
         if st.button("🔄 Refresh Data Rekap"):
             st.cache_data.clear()
@@ -439,12 +439,39 @@ def render_master_rekap():
 
         st.markdown("---")
         
-        unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])))
+        # Ambil daftar tanggal yang tersedia di database
+        unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])), reverse=True)
+        
+        # Konversi string tanggal unik ke objek date untuk default selectbox filter
+        date_options = [datetime.datetime.strptime(d, "%Y-%m-%d").date() for d in unique_dates]
+        today_date = datetime.date.today()
+        
+        # Tentukan default index (jika tanggal hari ini ada di data, pilih hari ini. Jika tidak, pilih tanggal teratas)
+        default_index = 0
+        if today_date in date_options:
+            default_index = date_options.index(today_date)
 
-        for tgl in unique_dates:
-            st.markdown(f"### 📅 Tanggal: {tgl}")
-            orders_on_date = [o for o in all_orders_db if o["tanggal"] == tgl]
-            
+        # --- WIDGET FILTER TANGGAL ---
+        st.markdown("#### 🔍 Filter Berdasarkan Tanggal:")
+        selected_filter_date = st.selectbox(
+            "Pilih Tanggal Rekap:",
+            options=date_options,
+            index=default_index,
+            format_func=lambda x: x.strftime("%A, %d %B %Y"),
+            key="admin_filter_date"
+        )
+        
+        selected_date_str = str(selected_filter_date)
+        st.markdown("---")
+
+        # Filter data hanya untuk tanggal yang dipilih
+        orders_on_date = [o for o in all_orders_db if o["tanggal"] == selected_date_str]
+
+        st.markdown(f"### 📅 Rekap Tanggal: {selected_date_str}")
+
+        if not orders_on_date:
+            st.warning(f"⚠️ Tidak ada data pesanan untuk tanggal {selected_date_str}.")
+        else:
             grouped_by_person = {}
             for ord_data in orders_on_date:
                 nama = ord_data["nama_pemesan"]
@@ -455,7 +482,7 @@ def render_master_rekap():
             total_biaya_tgl = 0
             no_urut = 1
 
-            st.markdown("#### 📋 Tabel Master Semua Pesanan:")
+            st.markdown("#### 📋 Tabel Master Pesanan:")
             
             header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
             header_cols[0].markdown("**No**")
@@ -497,7 +524,7 @@ def render_master_rekap():
                     
                     if idx == 0:
                         with row_cols[2]:
-                            ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
+                            ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{selected_date_str}_{nama}")
                             if ubah_lunas != is_currently_lunas:
                                 status_str = "Lunas" if ubah_lunas else "Belum Lunas"
                                 for item_grup in items:
@@ -517,7 +544,7 @@ def render_master_rekap():
                     row_cols[8].write(subtotal_text)
                     
                     with row_cols[9]:
-                        if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                        if st.button("❌", key=f"del_btn_{selected_date_str}_{nama}_{idx}_{m_item['id']}"):
                             cell = sheet_orders.find(str(m_item['id']))
                             if cell:
                                 sheet_orders.delete_rows(cell.row)
@@ -528,7 +555,7 @@ def render_master_rekap():
                 st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
 
             st.markdown("---")
-            st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
+            st.markdown(f"### 💰 Total Uang Masuk Tanggal {selected_date_str}: **Rp {total_biaya_tgl:,}**")
             
             st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
             
