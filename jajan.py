@@ -448,7 +448,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v6"
+            key="admin_filter_date_v7"
         )
         
         st.markdown("---")
@@ -632,7 +632,9 @@ def render_master_rekap():
                             
                             # 2. Jika admin memilih menu tambahan di dalam form, masukkan sebagai baris baru dengan nama orang yang sama
                             if chosen_add_str != "- Tidak Menambah Menu Baru -" and sub_added_menu_name:
-                                new_id = len(all_data_raw) + 2
+                                # Perbaikan penentuan ID baru agar aman dari error scope
+                                fresh_orders_check = get_cached_orders()
+                                new_id = len(fresh_orders_check) + 1
                                 sheet_orders.append_row([
                                     new_id,
                                     tgl,
