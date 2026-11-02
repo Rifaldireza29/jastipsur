@@ -142,6 +142,8 @@ if "current_cart" not in st.session_state:
     st.session_state.current_cart = []
 if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
+if "editing_item_id" not in st.session_state:
+    st.session_state.editing_item_id = None
 
 saved_tgl, saved_ids, saved_time = load_system_config()
 if "active_menu_date" not in st.session_state:
@@ -394,7 +396,7 @@ def render_form_pesanan():
             st.session_state.show_payment_popup = False
             st.rerun()
 
-# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FILTER TANGGAL & OPSI SEMUA =================
+# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FITUR EDIT & FILTER =================
 def render_master_rekap():
     col_title, col_btn = st.columns([3, 1])
     with col_title:
@@ -439,22 +441,18 @@ def render_master_rekap():
 
         st.markdown("---")
         
-        # Ambil daftar tanggal unik dari database
         unique_dates = sorted(list(set(order["tanggal"] for order in all_orders_db if order["tanggal"])), reverse=True)
-        
-        # Buat opsi filter: Tambahkan opsi "Semua Tanggal (Continue)" di urutan pertama
         filter_options = ["🌐 Semua Tanggal (Continue)"] + unique_dates
 
         st.markdown("#### 🔍 Filter Berdasarkan Tanggal:")
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v2"
+            key="admin_filter_date_v3"
         )
         
         st.markdown("---")
 
-        # Tentukan tanggal yang akan dirender berdasarkan pilihan filter
         if selected_filter == "🌐 Semua Tanggal (Continue)":
             dates_to_render = unique_dates
         else:
@@ -476,7 +474,7 @@ def render_master_rekap():
 
             st.markdown("#### 📋 Tabel Master Pesanan:")
             
-            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.0])
             header_cols[0].markdown("**No**")
             header_cols[1].markdown("**Pemesan**")
             header_cols[2].markdown("**Status**")
@@ -510,7 +508,7 @@ def render_master_rekap():
                     else:
                         subtotal_text = ""
 
-                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.0])
                     row_cols[0].write(display_no)
                     row_cols[1].write(display_nama)
                     
@@ -536,11 +534,53 @@ def render_master_rekap():
                     row_cols[8].write(subtotal_text)
                     
                     with row_cols[9]:
-                        if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                        col_edit_btn, col_del_btn = st.columns(2)
+                        with col_edit_btn:
+                            if st.button("✏️", key=f"edit_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                                st.session_state.editing_item_id = m_item['id']
+                        with col_del_btn:
+                            if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                                cell = sheet_orders.find(str(m_item['id']))
+                                if cell:
+                                    sheet_orders.delete_rows(cell.row)
+                                st.cache_data.clear()
+                                st.rerun()
+
+                # --- FORM EDIT KETIKA TOMBOL ✏️ DIKLIK ---
+                if st.session_state.editing_item_id == m_item['id']:
+                    with st.form(key=f"form_edit_{m_item['id']}"):
+                        st.markdown(f"**🛠️ Edit Pesanan ID #{m_item['id']} ({nama} - {m_item['nama_menu']})**")
+                        new_menu_edit = st.text_input("Nama Menu:", value=m_item['nama_menu'])
+                        c_e1, c_e2 = st.columns(2)
+                        with c_e1:
+                            new_harga_edit = st.number_input("Harga Satuan (Rp):", value=int(m_item['harga']), step=500)
+                            new_qty_edit = st.number_input("Qty:", min_value=1, max_value=20, value=int(m_item['qty']))
+                        with c_e2:
+                            new_level_edit = st.text_input("Level:", value=m_item['level'])
+                            new_catatan_edit = st.text_input("Catatan:", value=m_item['catatan'])
+                        
+                        col_submit_edit, col_cancel_edit = st.columns(2)
+                        with col_submit_edit:
+                            submit_change = st.form_submit_button("💾 Simpan Perubahan")
+                        with col_cancel_edit:
+                            cancel_change = st.form_submit_button("❌ Batal")
+
+                        if submit_change:
                             cell = sheet_orders.find(str(m_item['id']))
                             if cell:
-                                sheet_orders.delete_rows(cell.row)
+                                # Kolom: 1=id, 2=tanggal, 3=nama_pemesan, 4=nama_menu, 5=harga, 6=qty, 7=level, 8=catatan, 9=status_lunas
+                                sheet_orders.update_cell(cell.row, 4, new_menu_edit)
+                                sheet_orders.update_cell(cell.row, 5, int(new_harga_edit))
+                                sheet_orders.update_cell(cell.row, 6, int(new_qty_edit))
+                                sheet_orders.update_cell(cell.row, 7, new_level_edit)
+                                sheet_orders.update_cell(cell.row, 8, new_catatan_edit)
+                            st.session_state.editing_item_id = None
                             st.cache_data.clear()
+                            st.success("✅ Pesanan berhasil diperbarui!")
+                            st.rerun()
+
+                        if cancel_change:
+                            st.session_state.editing_item_id = None
                             st.rerun()
 
                 no_urut += 1
@@ -600,7 +640,7 @@ def render_panel_kontrol():
 
     st.markdown("---")
     
-    for item in MENU_JAJANAN:
+    for item in MENU_JAJAN_JAJANAN if 'MENU_JAJAN_JAJANAN' in globals() else MENU_JAJANAN:
         key_name = f"toggle_menu_{item['id']}"
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
             
