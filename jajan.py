@@ -396,7 +396,7 @@ def render_form_pesanan():
             st.session_state.show_payment_popup = False
             st.rerun()
 
-# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FITUR EDIT + TAMBAH DI DALAMNYA =================
+# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FILTER & EDIT YANG SESUAI SETTING ADMIN =================
 def render_master_rekap():
     col_title, col_btn = st.columns([3, 1])
     with col_title:
@@ -448,7 +448,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v5"
+            key="admin_filter_date_v6"
         )
         
         st.markdown("---")
@@ -546,7 +546,7 @@ def render_master_rekap():
                                 st.cache_data.clear()
                                 st.rerun()
 
-                # --- FORM EDIT PESANAN & TAMBAH MENU BARU DI DALAMNYA ---
+                # --- FORM EDIT PESANAN & TAMBAH MENU BARU (SESUAI SETTING AKTIF ADMIN) ---
                 if st.session_state.editing_item_id == m_item['id']:
                     with st.form(key=f"form_edit_{m_item['id']}"):
                         st.markdown(f"### 🛠️ Edit Pesanan ID #{m_item['id']} ({nama})")
@@ -562,14 +562,15 @@ def render_master_rekap():
                             new_catatan_edit = st.text_input("Catatan:", value=m_item['catatan'])
                         
                         st.markdown("---")
-                        st.markdown("#### ➕ Atau Mau Sekalian Tambah Menu Baru untuk **{nama}**?")
+                        st.markdown(f"#### ➕ Atau Mau Sekalian Tambah Menu Baru untuk **{nama}**?")
                         
+                        # Ambil HANYA menu yang diaktifkan di panel kontrol admin
                         active_menu_list = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
                         if not active_menu_list:
-                            active_menu_list = MENU_JAJANAN
+                            active_menu_list = MENU_JAJANAN # Fallback kalau kosong
                         
                         add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
-                        chosen_add_str = st.selectbox("Pilih Menu Tambahan (Opsional):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
+                        chosen_add_str = st.selectbox("Pilih Menu Tambahan (Sesuai Menu Aktif):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
                         
                         sub_added_menu_name = None
                         sub_added_price = 0
@@ -717,7 +718,7 @@ def render_panel_kontrol():
     st.markdown("---")
     if st.button("💾 Simpan Pengaturan Jadwal & Menu"):
         new_active = []
-        for item in MENU_JAJAN_JAJANAN if 'MENU_JAJAN_JAJANAN' in globals() else MENU_JAJANAN:
+        for item in MENU_JAJANAN:
             if st.session_state.get(f"toggle_menu_{item['id']}", False):
                 new_active.append(item["id"])
         
