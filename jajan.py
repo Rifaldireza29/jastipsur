@@ -144,6 +144,8 @@ if "show_payment_popup" not in st.session_state:
     st.session_state.show_payment_popup = False
 if "editing_item_id" not in st.session_state:
     st.session_state.editing_item_id = None
+if "adding_item_person" not in st.session_state:
+    st.session_state.adding_item_person = None
 
 saved_tgl, saved_ids, saved_time = load_system_config()
 if "active_menu_date" not in st.session_state:
@@ -396,7 +398,7 @@ def render_form_pesanan():
             st.session_state.show_payment_popup = False
             st.rerun()
 
-# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FITUR EDIT & FILTER =================
+# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FITUR EDIT & TAMBAH MENU =================
 def render_master_rekap():
     col_title, col_btn = st.columns([3, 1])
     with col_title:
@@ -448,7 +450,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v3"
+            key="admin_filter_date_v4"
         )
         
         st.markdown("---")
@@ -474,7 +476,7 @@ def render_master_rekap():
 
             st.markdown("#### 📋 Tabel Master Pesanan:")
             
-            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.0])
+            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.2])
             header_cols[0].markdown("**No**")
             header_cols[1].markdown("**Pemesan**")
             header_cols[2].markdown("**Status**")
@@ -508,7 +510,7 @@ def render_master_rekap():
                     else:
                         subtotal_text = ""
 
-                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.0])
+                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 1.2])
                     row_cols[0].write(display_no)
                     row_cols[1].write(display_nama)
                     
@@ -534,19 +536,25 @@ def render_master_rekap():
                     row_cols[8].write(subtotal_text)
                     
                     with row_cols[9]:
-                        col_edit_btn, col_del_btn = st.columns(2)
+                        col_edit_btn, col_add_btn, col_del_btn = st.columns(3)
                         with col_edit_btn:
-                            if st.button("✏️", key=f"edit_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                            if st.button("✏️", key=f"edit_btn_{tgl}_{nama}_{idx}_{m_item['id']}", help="Edit Pesanan Ini"):
                                 st.session_state.editing_item_id = m_item['id']
+                                st.session_state.adding_item_person = None
+                        with col_add_btn:
+                            if idx == 0:  # Tombol tambah item ditaruh di baris pertama nama tersebut
+                                if st.button("➕", key=f"add_btn_{tgl}_{nama}", help=f"Tambah Menu untuk {nama}"):
+                                    st.session_state.adding_item_person = nama
+                                    st.session_state.editing_item_id = None
                         with col_del_btn:
-                            if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}"):
+                            if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}", help="Hapus Item Ini"):
                                 cell = sheet_orders.find(str(m_item['id']))
                                 if cell:
                                     sheet_orders.delete_rows(cell.row)
                                 st.cache_data.clear()
                                 st.rerun()
 
-                # --- FORM EDIT KETIKA TOMBOL ✏️ DIKLIK ---
+                # --- FORM EDIT PESANAN ---
                 if st.session_state.editing_item_id == m_item['id']:
                     with st.form(key=f"form_edit_{m_item['id']}"):
                         st.markdown(f"**🛠️ Edit Pesanan ID #{m_item['id']} ({nama} - {m_item['nama_menu']})**")
@@ -568,7 +576,6 @@ def render_master_rekap():
                         if submit_change:
                             cell = sheet_orders.find(str(m_item['id']))
                             if cell:
-                                # Kolom: 1=id, 2=tanggal, 3=nama_pemesan, 4=nama_menu, 5=harga, 6=qty, 7=level, 8=catatan, 9=status_lunas
                                 sheet_orders.update_cell(cell.row, 4, new_menu_edit)
                                 sheet_orders.update_cell(cell.row, 5, int(new_harga_edit))
                                 sheet_orders.update_cell(cell.row, 6, int(new_qty_edit))
@@ -584,7 +591,84 @@ def render_master_rekap():
                             st.rerun()
 
                 no_urut += 1
-                st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
+
+            # --- FORM TAMBAH MENU BARU UNTUK PEMESAN YANG SAMA (TANPA MEMBUAT NAMA DOBEL DI REKAP UTAMA) ---
+            if st.session_state.adding_item_person == nama:
+                st.markdown(f"---")
+                with st.form(key=f"form_add_item_{tgl}_{nama}"):
+                    st.markdown(f"**➕ Tambah Menu Baru untuk: {nama} (Tanggal: {tgl})**")
+                    
+                    active_menu_list = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
+                    if not active_menu_list:
+                        active_menu_list = MENU_JAJANAN # Fallback kalau belum ada yang di-aktifkan
+                    
+                    add_menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
+                    chosen_menu_str = st.selectbox("Pilih Menu Tambahan:", add_menu_options, key=f"add_menu_sel_{nama}")
+                    
+                    chosen_idx = add_menu_options.index(chosen_menu_str)
+                    chosen_item_obj = active_menu_list[chosen_idx]
+                    
+                    if chosen_item_obj["tipe_menu"] == "varian":
+                        chosen_varian_obj = st.selectbox(
+                            "Pilih Varian:", 
+                            chosen_item_obj["varian"], 
+                            format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})",
+                            key=f"add_var_sel_{nama}"
+                        )
+                        final_added_menu_name = f"{chosen_item_obj['nama']} - {chosen_varian_obj['nama']}"
+                        final_added_price = chosen_varian_obj["harga"]
+                    else:
+                        if len(chosen_item_obj["pilihan_harga"]) > 1:
+                            final_added_price = st.radio(
+                                "Pilih Harga:", 
+                                chosen_item_obj["pilihan_harga"], 
+                                format_func=lambda x: f"Rp {x:,}",
+                                key=f"add_price_rad_{nama}"
+                            )
+                        else:
+                            final_added_price = chosen_item_obj["pilihan_harga"][0]
+                            st.write(f"**Harga:** Rp {final_added_price:,}")
+                        
+                        final_added_menu_name = f"{chosen_item_obj['nama']} (Rp {final_added_price:,})"
+
+                    c_a1, c_a2 = st.columns(2)
+                    with c_a1:
+                        added_qty = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1, key=f"add_qty_{nama}")
+                    with c_a2:
+                        added_level = st.selectbox("Level Pedas:", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"], key=f"add_lvl_{nama}")
+                    
+                    added_catatan = st.text_input("Catatan Khusus:", placeholder="Contoh: Kuah dipisah", key=f"add_note_{nama}")
+
+                    col_s_add, col_c_add = st.columns(2)
+                    with col_s_add:
+                        submit_add_item = st.form_submit_button("🚀 Masukkan Pesanan Tambahan")
+                    with col_c_add:
+                        cancel_add_item = st.form_submit_button("❌ Batal")
+
+                    if submit_add_item:
+                        new_id = len(all_data_raw) + 1
+                        # Masukkan data menu baru dengan nama pemesan yang sama dan tanggal yang sama
+                        sheet_orders.append_row([
+                            new_id,
+                            tgl,
+                            nama,
+                            final_added_menu_name,
+                            int(final_added_price),
+                            int(added_qty),
+                            added_level,
+                            added_catatan if added_catatan else "-",
+                            items[0]["status_lunas"] # Menyesuaikan status lunas yang sama
+                        ])
+                        st.session_state.adding_item_person = None
+                        st.cache_data.clear()
+                        st.success(f"✅ Berhasil menambahkan menu untuk {nama}!")
+                        st.rerun()
+
+                    if cancel_add_item:
+                        st.session_state.adding_item_person = None
+                        st.rerun()
+
+            st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
 
             st.markdown("---")
             st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
@@ -640,7 +724,7 @@ def render_panel_kontrol():
 
     st.markdown("---")
     
-    for item in MENU_JAJAN_JAJANAN if 'MENU_JAJAN_JAJANAN' in globals() else MENU_JAJANAN:
+    for item in MENU_JAJANAN:
         key_name = f"toggle_menu_{item['id']}"
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
             
