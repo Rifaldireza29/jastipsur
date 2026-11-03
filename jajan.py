@@ -34,7 +34,7 @@ try:
     sheet_orders = sh.worksheet("orders")
     
     if len(sheet_orders.get_all_values()) == 0:
-        sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
+        sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
 except Exception as e:
     st.error(f"⚠️ Gagal terhubung ke Google Sheets. Pastikan file 'Database_Jastipsur' dan tab 'orders' sudah ada! Error: {e}")
     st.stop()
@@ -351,8 +351,7 @@ def render_form_pesanan():
                         int(cart_item["harga"]),
                         int(cart_item["qty"]),
                         cart_item["level"],
-                        cart_item["catatan"],
-                        "Belum Lunas"
+                        cart_item["catatan"]
                     ])
                     new_id += 1
 
@@ -364,8 +363,7 @@ def render_form_pesanan():
                     int(biaya_jastip),
                     1,
                     "-",
-                    "",
-                    "Belum Lunas"
+                    ""
                 ])
 
                 st.session_state.last_total_pay = total_biaya_akhir
@@ -396,7 +394,7 @@ def render_form_pesanan():
             st.session_state.show_payment_popup = False
             st.rerun()
 
-# ================= TAB 2: MASTER REKAP GABUNGAN DENGAN FILTER & EDIT YANG SESUAI SETTING ADMIN =================
+# ================= TAB 2: MASTER REKAP GABUNGAN (TANPA STATUS LUNAS) =================
 def render_master_rekap():
     col_title, col_btn = st.columns([3, 1])
     with col_title:
@@ -424,8 +422,7 @@ def render_master_rekap():
                     "harga": int(r_lower.get("harga", 0) or 0),
                     "qty": int(r_lower.get("qty", 1) or 1),
                     "level": str(r_lower.get("level", "-")),
-                    "catatan": str(r_lower.get("catatan", "")),
-                    "status_lunas": str(r_lower.get("status_lunas", "Belum Lunas"))
+                    "catatan": str(r_lower.get("catatan", ""))
                 })
             except:
                 pass
@@ -435,7 +432,7 @@ def render_master_rekap():
     else:
         if st.button("🗑️ Reset / Hapus Semua Rekap Spreadsheet"):
             sheet_orders.clear()
-            sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan", "status_lunas"])
+            sheet_orders.append_row(["id", "tanggal", "nama_pemesan", "nama_menu", "harga", "qty", "level", "catatan"])
             st.cache_data.clear()
             st.rerun()
 
@@ -448,7 +445,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v7"
+            key="admin_filter_date_v8"
         )
         
         st.markdown("---")
@@ -474,17 +471,17 @@ def render_master_rekap():
 
             st.markdown("#### 📋 Tabel Master Pesanan:")
             
-            header_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+            # Kolom tanpa status lunas
+            header_cols = st.columns([0.4, 1.8, 2.5, 1.2, 0.6, 1.4, 2.2, 2.2, 1.0])
             header_cols[0].markdown("**No**")
             header_cols[1].markdown("**Pemesan**")
-            header_cols[2].markdown("**Status**")
-            header_cols[3].markdown("**Menu / Item**")
-            header_cols[4].markdown("**Harga**")
-            header_cols[5].markdown("**Qty**")
-            header_cols[6].markdown("**Level**")
-            header_cols[7].markdown("**Catatan**")
-            header_cols[8].markdown("**Subtotal**")
-            header_cols[9].markdown("**Aksi**")
+            header_cols[2].markdown("**Menu / Item**")
+            header_cols[3].markdown("**Harga**")
+            header_cols[4].markdown("**Qty**")
+            header_cols[5].markdown("**Level**")
+            header_cols[6].markdown("**Catatan**")
+            header_cols[7].markdown("**Subtotal**")
+            header_cols[8].markdown("**Aksi**")
             st.markdown("<hr style='margin: 4px 0px;'>", unsafe_allow_html=True)
 
             for nama, items in grouped_by_person.items():
@@ -493,8 +490,6 @@ def render_master_rekap():
                 subtotal_murni_makanan = sum([i["harga"] * i["qty"] for i in menu_items])
                 subtotal_orang_dengan_jastip = subtotal_murni_makanan + 1000
                 total_biaya_tgl += subtotal_orang_dengan_jastip
-
-                is_currently_lunas = items[0]["status_lunas"] == "Lunas" if items else False
 
                 for idx, m_item in enumerate(menu_items):
                     harga_satuan_str = f"Rp {m_item['harga']:,}"
@@ -508,32 +503,17 @@ def render_master_rekap():
                     else:
                         subtotal_text = ""
 
-                    row_cols = st.columns([0.4, 1.5, 1.8, 2.2, 1.0, 0.5, 1.2, 2.0, 2.2, 0.8])
+                    row_cols = st.columns([0.4, 1.8, 2.5, 1.2, 0.6, 1.4, 2.2, 2.2, 1.0])
                     row_cols[0].write(display_no)
                     row_cols[1].write(display_nama)
+                    row_cols[2].write(m_item["nama_menu"])
+                    row_cols[3].write(harga_satuan_str)
+                    row_cols[4].write(str(m_item["qty"]))
+                    row_cols[5].write(m_item["level"])
+                    row_cols[6].write(m_item["catatan"])
+                    row_cols[7].write(subtotal_text)
                     
-                    if idx == 0:
-                        with row_cols[2]:
-                            ubah_lunas = st.checkbox("Lunas", value=is_currently_lunas, key=f"chk_lunas_{tgl}_{nama}")
-                            if ubah_lunas != is_currently_lunas:
-                                status_str = "Lunas" if ubah_lunas else "Belum Lunas"
-                                for item_grup in items:
-                                    cell = sheet_orders.find(str(item_grup['id']))
-                                    if cell:
-                                        sheet_orders.update_cell(cell.row, 9, status_str)
-                                st.cache_data.clear()
-                                st.rerun()
-                    else:
-                        row_cols[2].write("")
-
-                    row_cols[3].write(m_item["nama_menu"])
-                    row_cols[4].write(harga_satuan_str)
-                    row_cols[5].write(str(m_item["qty"]))
-                    row_cols[6].write(m_item["level"])
-                    row_cols[7].write(m_item["catatan"])
-                    row_cols[8].write(subtotal_text)
-                    
-                    with row_cols[9]:
+                    with row_cols[8]:
                         col_edit_btn, col_del_btn = st.columns(2)
                         with col_edit_btn:
                             if st.button("✏️", key=f"edit_btn_{tgl}_{nama}_{idx}_{m_item['id']}", help="Edit atau Tambah Menu"):
@@ -546,7 +526,7 @@ def render_master_rekap():
                                 st.cache_data.clear()
                                 st.rerun()
 
-                # --- FORM EDIT PESANAN & TAMBAH MENU BARU (SESUAI SETTING AKTIF ADMIN) ---
+                # --- FORM EDIT PESANAN & TAMBAH MENU BARU ---
                 if st.session_state.editing_item_id == m_item['id']:
                     with st.form(key=f"form_edit_{m_item['id']}"):
                         st.markdown(f"### 🛠️ Edit Pesanan ID #{m_item['id']} ({nama})")
@@ -564,10 +544,9 @@ def render_master_rekap():
                         st.markdown("---")
                         st.markdown(f"#### ➕ Atau Mau Sekalian Tambah Menu Baru untuk **{nama}**?")
                         
-                        # Ambil HANYA menu yang diaktifkan di panel kontrol admin
                         active_menu_list = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
                         if not active_menu_list:
-                            active_menu_list = MENU_JAJANAN # Fallback kalau kosong
+                            active_menu_list = MENU_JAJANAN
                         
                         add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
                         chosen_add_str = st.selectbox("Pilih Menu Tambahan (Sesuai Menu Aktif):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
@@ -621,7 +600,6 @@ def render_master_rekap():
                             cancel_change = st.form_submit_button("❌ Batal")
 
                         if submit_change:
-                            # 1. Update item yang sedang diedit
                             cell = sheet_orders.find(str(m_item['id']))
                             if cell:
                                 sheet_orders.update_cell(cell.row, 4, new_menu_edit)
@@ -630,9 +608,7 @@ def render_master_rekap():
                                 sheet_orders.update_cell(cell.row, 7, new_level_edit)
                                 sheet_orders.update_cell(cell.row, 8, new_catatan_edit)
                             
-                            # 2. Jika admin memilih menu tambahan di dalam form, masukkan sebagai baris baru dengan nama orang yang sama
                             if chosen_add_str != "- Tidak Menambah Menu Baru -" and sub_added_menu_name:
-                                # Perbaikan penentuan ID baru agar aman dari error scope
                                 fresh_orders_check = get_cached_orders()
                                 new_id = len(fresh_orders_check) + 1
                                 sheet_orders.append_row([
@@ -643,8 +619,7 @@ def render_master_rekap():
                                     int(sub_added_price),
                                     int(sub_added_qty),
                                     sub_added_level,
-                                    sub_added_catatan if sub_added_catatan else "-",
-                                    items[0]["status_lunas"]
+                                    sub_added_catatan if sub_added_catatan else "-"
                                 ])
 
                             st.session_state.editing_item_id = None
