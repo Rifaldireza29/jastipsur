@@ -80,6 +80,14 @@ MENU_JAJANAN = [
     {"id": 13, "nama": "Kentang Goreng", "tipe_menu": "normal", "pilihan_harga": [5000], "deskripsi": "French fries crispy."},
     {"id": 6, "nama": "Kwetiaw", "tipe_menu": "normal", "pilihan_harga": [10000], "deskripsi": "kwetiau harga pasar rasa restoran."},
     {
+        "id": 22, "nama": "Makaroni", "tipe_menu": "varian",
+        "varian": [
+            {"nama": "Makaroni Basah", "harga": 5000},
+            {"nama": "Makaroni Kering", "harga": 5000}
+        ],
+        "deskripsi": "Makaroni gurih varian basah & kering."
+    },
+    {
         "id": 9, "nama": "Martabak Mini", "tipe_menu": "varian", 
         "varian": [{"nama": "Pisang", "harga": 2500}, {"nama": "Coklat", "harga": 2500}, {"nama": "Keju", "harga": 3000}, {"nama": "Pisang-Coklat", "harga": 3000}, {"nama": "Pisang-Keju", "harga": 3000}],
         "deskripsi": "Martabak mini manis aneka topping."
