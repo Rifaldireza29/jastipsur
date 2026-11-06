@@ -396,7 +396,6 @@ def render_form_pesanan():
 
 # ================= TAB 2: MASTER REKAP GABUNGAN =================
 def render_master_rekap():
-    # Pastikan session state editing_item_id selalu terinisialisasi di dalam fungsi
     if "editing_item_id" not in st.session_state:
         st.session_state.editing_item_id = None
 
@@ -449,7 +448,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v9"
+            key="admin_filter_date_v10"
         )
         
         st.markdown("---")
@@ -521,6 +520,7 @@ def render_master_rekap():
                         with col_edit_btn:
                             if st.button("✏️", key=f"edit_btn_{tgl}_{nama}_{idx}_{m_item['id']}", help="Edit atau Tambah Menu"):
                                 st.session_state.editing_item_id = m_item['id']
+                                st.rerun()
                         with col_del_btn:
                             if st.button("❌", key=f"del_btn_{tgl}_{nama}_{idx}_{m_item['id']}", help="Hapus Item Ini"):
                                 cell = sheet_orders.find(str(m_item['id']))
@@ -529,110 +529,110 @@ def render_master_rekap():
                                 st.cache_data.clear()
                                 st.rerun()
 
-                # --- FORM EDIT PESANAN & TAMBAH MENU BARU ---
-                if st.session_state.editing_item_id == m_item['id']:
-                    with st.form(key=f"form_edit_{m_item['id']}"):
-                        st.markdown(f"### 🛠️ Edit Pesanan ID #{m_item['id']} ({nama})")
-                        st.markdown("*Ubah detail item yang ada di bawah ini:*")
-                        
-                        new_menu_edit = st.text_input("Nama Menu:", value=m_item['nama_menu'])
-                        c_e1, c_e2 = st.columns(2)
-                        with c_e1:
-                            new_harga_edit = st.number_input("Harga Satuan (Rp):", value=int(m_item['harga']), step=500)
-                            new_qty_edit = st.number_input("Qty:", min_value=1, max_value=20, value=int(m_item['qty']))
-                        with c_e2:
-                            new_level_edit = st.text_input("Level:", value=m_item['level'])
-                            new_catatan_edit = st.text_input("Catatan:", value=m_item['catatan'])
-                        
-                        st.markdown("---")
-                        st.markdown(f"#### ➕ Atau Mau Sekalian Tambah Menu Baru untuk **{nama}**?")
-                        
-                        active_menu_list = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
-                        if not active_menu_list:
-                            active_menu_list = MENU_JAJANAN
-                        
-                        add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
-                        chosen_add_str = st.selectbox("Pilih Menu Tambahan (Sesuai Menu Aktif):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
-                        
-                        sub_added_menu_name = None
-                        sub_added_price = 0
-                        sub_added_qty = 1
-                        sub_added_level = "-"
-                        sub_added_catatan = "-"
-
-                        if chosen_add_str != "- Tidak Menambah Menu Baru -":
-                            chosen_idx = add_menu_options.index(chosen_add_str) - 1
-                            chosen_item_obj = active_menu_list[chosen_idx]
+                    # --- FORM EDIT PESANAN & TAMBAH MENU BARU DI DALAM BARIS ITEM ---
+                    if st.session_state.editing_item_id == m_item['id']:
+                        with st.form(key=f"form_edit_{m_item['id']}"):
+                            st.markdown(f"### 🛠️ Edit Pesanan ID #{m_item['id']} ({nama})")
+                            st.markdown("*Ubah detail item yang ada di bawah ini:*")
                             
-                            if chosen_item_obj["tipe_menu"] == "varian":
-                                chosen_var_obj = st.selectbox(
-                                    "Pilih Varian Tambahan:", 
-                                    chosen_item_obj["varian"], 
-                                    format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})",
-                                    key=f"sub_add_var_{m_item['id']}"
-                                )
-                                sub_added_menu_name = f"{chosen_item_obj['nama']} - {chosen_var_obj['nama']}"
-                                sub_added_price = chosen_var_obj["harga"]
-                            else:
-                                if len(chosen_item_obj["pilihan_harga"]) > 1:
-                                    sub_added_price = st.radio(
-                                        "Pilih Harga Tambahan:", 
-                                        chosen_item_obj["pilihan_harga"], 
-                                        format_func=lambda x: f"Rp {x:,}",
-                                        key=f"sub_add_prc_{m_item['id']}"
-                                    )
-                                else:
-                                    sub_added_price = chosen_item_obj["pilihan_harga"][0]
-                                    st.write(f"**Harga:** Rp {sub_added_price:,}")
+                            new_menu_edit = st.text_input("Nama Menu:", value=m_item['nama_menu'])
+                            c_e1, c_e2 = st.columns(2)
+                            with c_e1:
+                                new_harga_edit = st.number_input("Harga Satuan (Rp):", value=int(m_item['harga']), step=500)
+                                new_qty_edit = st.number_input("Qty:", min_value=1, max_value=20, value=int(m_item['qty']))
+                            with c_e2:
+                                new_level_edit = st.text_input("Level:", value=m_item['level'])
+                                new_catatan_edit = st.text_input("Catatan:", value=m_item['catatan'])
+                            
+                            st.markdown("---")
+                            st.markdown(f"#### ➕ Atau Mau Sekalian Tambah Menu Baru untuk **{nama}**?")
+                            
+                            active_menu_list = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
+                            if not active_menu_list:
+                                active_menu_list = MENU_JAJANAN
+                            
+                            add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
+                            chosen_add_str = st.selectbox("Pilih Menu Tambahan (Sesuai Menu Aktif):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
+                            
+                            sub_added_menu_name = None
+                            sub_added_price = 0
+                            sub_added_qty = 1
+                            sub_added_level = "-"
+                            sub_added_catatan = "-"
+
+                            if chosen_add_str != "- Tidak Menambah Menu Baru -":
+                                chosen_idx = add_menu_options.index(chosen_add_str) - 1
+                                chosen_item_obj = active_menu_list[chosen_idx]
                                 
-                                sub_added_menu_name = f"{chosen_item_obj['nama']} (Rp {sub_added_price:,})"
+                                if chosen_item_obj["tipe_menu"] == "varian":
+                                    chosen_var_obj = st.selectbox(
+                                        "Pilih Varian Tambahan:", 
+                                        chosen_item_obj["varian"], 
+                                        format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})",
+                                        key=f"sub_add_var_{m_item['id']}"
+                                    )
+                                    sub_added_menu_name = f"{chosen_item_obj['nama']} - {chosen_var_obj['nama']}"
+                                    sub_added_price = chosen_var_obj["harga"]
+                                else:
+                                    if len(chosen_item_obj["pilihan_harga"]) > 1:
+                                        sub_added_price = st.radio(
+                                            "Pilih Harga Tambahan:", 
+                                            chosen_item_obj["pilihan_harga"], 
+                                            format_func=lambda x: f"Rp {x:,}",
+                                            key=f"sub_add_prc_{m_item['id']}"
+                                        )
+                                    else:
+                                        sub_added_price = chosen_item_obj["pilihan_harga"][0]
+                                        st.write(f"**Harga:** Rp {sub_added_price:,}")
+                                    
+                                    sub_added_menu_name = f"{chosen_item_obj['nama']} (Rp {sub_added_price:,})"
 
-                            c_sa1, c_sa2 = st.columns(2)
-                            with c_sa1:
-                                sub_added_qty = st.number_input("Qty Tambahan:", min_value=1, max_value=20, value=1, key=f"sub_add_q_{m_item['id']}")
-                            with c_sa2:
-                                sub_added_level = st.selectbox("Level Tambahan:", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"], key=f"sub_add_l_{m_item['id']}")
-                            
-                            sub_added_catatan = st.text_input("Catatan Tambahan:", placeholder="Contoh: Kuah dipisah", key=f"sub_add_c_{m_item['id']}")
+                                c_sa1, c_sa2 = st.columns(2)
+                                with c_sa1:
+                                    sub_added_qty = st.number_input("Qty Tambahan:", min_value=1, max_value=20, value=1, key=f"sub_add_q_{m_item['id']}")
+                                with c_sa2:
+                                    sub_added_level = st.selectbox("Level Tambahan:", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"], key=f"sub_add_l_{m_item['id']}")
+                                
+                                sub_added_catatan = st.text_input("Catatan Tambahan:", placeholder="Contoh: Kuah dipisah", key=f"sub_add_c_{m_item['id']}")
 
-                        st.markdown("---")
-                        col_submit_edit, col_cancel_edit = st.columns(2)
-                        with col_submit_edit:
-                            submit_change = st.form_submit_button("💾 Simpan Perubahan")
-                        with col_cancel_edit:
-                            cancel_change = st.form_submit_button("❌ Batal")
+                            st.markdown("---")
+                            col_submit_edit, col_cancel_edit = st.columns(2)
+                            with col_submit_edit:
+                                submit_change = st.form_submit_button("💾 Simpan Perubahan")
+                            with col_cancel_edit:
+                                cancel_change = st.form_submit_button("❌ Batal")
 
-                        if submit_change:
-                            cell = sheet_orders.find(str(m_item['id']))
-                            if cell:
-                                sheet_orders.update_cell(cell.row, 4, new_menu_edit)
-                                sheet_orders.update_cell(cell.row, 5, int(new_harga_edit))
-                                sheet_orders.update_cell(cell.row, 6, int(new_qty_edit))
-                                sheet_orders.update_cell(cell.row, 7, new_level_edit)
-                                sheet_orders.update_cell(cell.row, 8, new_catatan_edit)
-                            
-                            if chosen_add_str != "- Tidak Menambah Menu Baru -" and sub_added_menu_name:
-                                fresh_orders_check = get_cached_orders()
-                                new_id = len(fresh_orders_check) + 1
-                                sheet_orders.append_row([
-                                    new_id,
-                                    tgl,
-                                    nama,
-                                    sub_added_menu_name,
-                                    int(sub_added_price),
-                                    int(sub_added_qty),
-                                    sub_added_level,
-                                    sub_added_catatan if sub_added_catatan else "-"
-                                ])
+                            if submit_change:
+                                cell = sheet_orders.find(str(m_item['id']))
+                                if cell:
+                                    sheet_orders.update_cell(cell.row, 4, new_menu_edit)
+                                    sheet_orders.update_cell(cell.row, 5, int(new_harga_edit))
+                                    sheet_orders.update_cell(cell.row, 6, int(new_qty_edit))
+                                    sheet_orders.update_cell(cell.row, 7, new_level_edit)
+                                    sheet_orders.update_cell(cell.row, 8, new_catatan_edit)
+                                
+                                if chosen_add_str != "- Tidak Menambah Menu Baru -" and sub_added_menu_name:
+                                    fresh_orders_check = get_cached_orders()
+                                    new_id = len(fresh_orders_check) + 1
+                                    sheet_orders.append_row([
+                                        new_id,
+                                        tgl,
+                                        nama,
+                                        sub_added_menu_name,
+                                        int(sub_added_price),
+                                        int(sub_added_qty),
+                                        sub_added_level,
+                                        sub_added_catatan if sub_added_catatan else "-"
+                                    ])
 
-                            st.session_state.editing_item_id = None
-                            st.cache_data.clear()
-                            st.success("✅ Pesanan berhasil diperbarui & menu tambahan berhasil disimpan!")
-                            st.rerun()
+                                st.session_state.editing_item_id = None
+                                st.cache_data.clear()
+                                st.success("✅ Pesanan berhasil diperbarui & menu tambahan berhasil disimpan!")
+                                st.rerun()
 
-                        if cancel_change:
-                            st.session_state.editing_item_id = None
-                            st.rerun()
+                            if cancel_change:
+                                st.session_state.editing_item_id = None
+                                st.rerun()
 
                 no_urut += 1
                 st.markdown("<hr style='border: 0.5px solid #eee; margin: 2px 0px;'>", unsafe_allow_html=True)
