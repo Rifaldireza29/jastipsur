@@ -575,7 +575,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v13"
+            key="admin_filter_date_v14"
         )
         
         st.markdown("---")
@@ -742,28 +742,56 @@ def render_master_rekap():
             st.markdown("---")
             st.markdown(f"### 💰 Total Uang Masuk Tanggal {tgl}: **Rp {total_biaya_tgl:,}**")
             
-            st.markdown("#### 🛒 Rekap Total Porsi Jajanan Hari Ini (Urut A-Z):")
+            # --- PEMISAHAN REKAP MAKANAN & MINUMAN ---
+            summary_makanan = {}
+            summary_minuman = {}
             
-            summary_menu = {}
+            list_nama_minuman = [
+                "Thaitea", "Greentea", "Coklat", "Taro", "Mangga", "Strawberry", 
+                "Vanilla Ori", "Vanilla Latte", "Cheese Cake", "Choco Oreo", "Buble Gum", 
+                "Red Velvet", "Cappucino Cincau", "Milo", "Milky Orange", "Vanilla Oreo", 
+                "Es Teh / Teh Ijo", "Mangga Yakult", "Orange Yakult", "Leci Yakult", 
+                "Strawberry Yakult", "Lemon Yakult", "Thai Lemon Tea", "Green Lemon Tea", 
+                "Orange Tea", "Vanilla Lemon", "Coffe Susu", "Coffe Milo", "Thai Mix Milo", 
+                "Green Mix Milo", "Boba Brown Sugar", "Josu", "Kubimsu"
+            ]
+
             for ord_data in orders_on_date:
                 m_name = ord_data["nama_menu"]
                 if m_name != "Biaya Jastip":
                     m_qty = ord_data["qty"]
                     m_pemesan = ord_data["nama_pemesan"]
                     
-                    if m_name not in summary_menu:
-                        summary_menu[m_name] = {"total_qty": 0, "pemesan_list": []}
+                    is_minuman = any(m_name.startswith(minum) for minum in list_nama_minuman)
+                    target_dict = summary_minuman if is_minuman else summary_makanan
                     
-                    summary_menu[m_name]["total_qty"] += m_qty
-                    summary_menu[m_name]["pemesan_list"].append(f"{m_pemesan} ({m_qty})")
+                    if m_name not in target_dict:
+                        target_dict[m_name] = {"total_qty": 0, "pemesan_list": []}
+                    
+                    target_dict[m_name]["total_qty"] += m_qty
+                    target_dict[m_name]["pemesan_list"].append(f"{m_pemesan} ({m_qty})")
             
-            if summary_menu:
-                sorted_summary_menu = sorted(summary_menu.items())
-                for menu_name, data_val in sorted_summary_menu:
+            # 1. Rekap Makanan
+            st.markdown("#### 🍔 Rekap Total Porsi Makanan (Urut A-Z):")
+            if summary_makanan:
+                sorted_summary_makanan = sorted(summary_makanan.items())
+                for menu_name, data_val in sorted_summary_makanan:
                     gabungan_nama = ", ".join(data_val["pemesan_list"])
                     st.write(f"- **{menu_name}**: total **{data_val['total_qty']} porsi** — *({gabungan_nama})*")
             else:
-                st.write("- Belum ada porsi jajanan makanan.")
+                st.write("- Belum ada porsi makanan.")
+
+            st.markdown("")
+
+            # 2. Rekap Minuman
+            st.markdown("#### 🥤 Rekap Total Porsi Minuman (Urut A-Z):")
+            if summary_minuman:
+                sorted_summary_minuman = sorted(summary_minuman.items())
+                for menu_name, data_val in sorted_summary_minuman:
+                    gabungan_nama = ", ".join(data_val["pemesan_list"])
+                    st.write(f"- **{menu_name}**: total **{data_val['total_qty']} porsi** — *({gabungan_nama})*")
+            else:
+                st.write("- Belum ada porsi minuman.")
             
             st.markdown("====================")
 
@@ -793,7 +821,6 @@ def render_panel_kontrol():
 
     st.markdown("---")
     
-    # --- PENGATURAN MENU MAKANAN ---
     st.markdown("#### 🍔 Menu Makanan")
     for item in MENU_MAKANAN:
         key_name = f"toggle_menu_{item['id']}"
@@ -801,10 +828,7 @@ def render_panel_kontrol():
 
     st.markdown("---")
 
-    # --- PENGATURAN MENU MINUMAN DENGAN MASTER TOGGLE ---
     st.markdown("#### 🥤 Menu Minuman (Maycha Thaitea & Boba)")
-    
-    # Cek apakah semua minuman sedang aktif
     all_minuman_active = all(st.session_state.get(f"toggle_menu_{item['id']}", False) for item in MENU_MINUMAN)
     
     Master_minuman_toggle = st.checkbox("🌟 **[MASTER] Aktifkan / Nonaktifkan Semua Menu Minuman**", value=all_minuman_active, key="master_minuman_checkbox")
