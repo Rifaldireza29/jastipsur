@@ -44,7 +44,7 @@ except Exception as e:
 def get_cached_orders():
     return sheet_orders.get_all_records()
 
-# --- DAFTAR MENU (DIBAGI MENJADI MAKANAN & MINUMAN) ---
+# --- DAFTAR MENU (MAKANAN & MINUMAN) ---
 MENU_MAKANAN = [
     {"id": 8, "nama": "Basreng", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "baso goyeng."},
     {
@@ -120,7 +120,6 @@ MENU_MAKANAN = [
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
 
-# Daftar Menu Minuman Maycha Thaitea & Boba Drink (Harga Small, Medium, Large)
 MENU_MINUMAN = [
     {"id": 101, "nama": "Thaitea", "small": 6000, "medium": 8000, "large": 10000},
     {"id": 102, "nama": "Greentea", "small": 6000, "medium": 8000, "large": 10000},
@@ -157,7 +156,6 @@ MENU_MINUMAN = [
     {"id": 133, "nama": "Kubimsu", "small": 6000, "medium": None, "large": 10000}
 ]
 
-# Gabungan seluruh ID menu untuk pengaturan admin panel
 MENU_JAJANAN = MENU_MAKANAN + MENU_MINUMAN
 
 # --- FUNGSI LOAD & SAVE CONFIG LOKAL (JSON) ---
@@ -241,7 +239,6 @@ def render_form_pesanan():
     if is_admin:
         st.markdown("### 🛠️ Mode Admin: Anda sedang melihat halaman member (Bebas akses)")
     
-    # --- LIVE COUNTDOWN ANIMATION (WIB / UTC+07:00) ---
     target_iso = datetime.datetime.combine(st.session_state.active_menu_date, st.session_state.active_batas_waktu).isoformat()
     formatted_time_str = st.session_state.active_batas_waktu.strftime('%H:%M')
     
@@ -317,7 +314,6 @@ def render_form_pesanan():
     if not available_makanan and not available_minuman:
         st.warning("⚠️ Belum ada menu jajanan yang diaktifkan atau waktu pemesanan sudah berakhir.")
     else:
-        # Pilihan Kategori Menu
         kategori_pilihan = st.radio("Pilih Kategori:", ["🍔 Makanan", "🥤 Minuman (Maycha Thaitea & Boba)"], horizontal=True)
 
         if kategori_pilihan == "🍔 Makanan":
@@ -380,7 +376,6 @@ def render_form_pesanan():
                 drink_obj = next((item for item in available_minuman if item['nama'] == selected_minuman_str), None)
 
                 if drink_obj:
-                    # Filter ukuran yang tersedia (tidak None)
                     available_sizes = []
                     if drink_obj["small"] is not None:
                         available_sizes.append("Small")
@@ -391,7 +386,6 @@ def render_form_pesanan():
 
                     selected_size = st.radio("Pilih Ukuran Cup:", available_sizes, horizontal=True, key="radio_size")
 
-                    # Ambil harga berdasarkan ukuran
                     if selected_size == "Small":
                         base_price = drink_obj["small"]
                     elif selected_size == "Medium":
@@ -401,17 +395,14 @@ def render_form_pesanan():
 
                     st.write(f"**Harga Ukuran {selected_size}:** Rp {base_price:,}")
 
-                    # Free Topping (Pilih salah satu)
                     free_topping = st.selectbox("Pilih Free Topping (Gratis):", ["Boba / Buble", "Jelly", "Nutrijel"], key="free_top")
 
-                    # Extra Topping (Opsional, bisa tambah lebih dari satu atau berbayar)
                     extra_options = st.multiselect(
                         "Pilih Extra Topping (Opsional - Berbayar):", 
                         ["Boba Meletus (+Rp 3.000)", "Cream Cheese (+Rp 3.000)", "Oreo (+Rp 2.000)", "Cincau (+Rp 2.000)"],
                         key="extra_top"
                     )
 
-                    # Hitung tambahan harga extra topping
                     extra_price_total = 0
                     extra_names = []
                     for ext in extra_options:
@@ -423,7 +414,6 @@ def render_form_pesanan():
 
                     final_drink_price = base_price + extra_price_total
 
-                    # Susun nama minuman final
                     topping_str = f"Free: {free_topping}"
                     if extra_names:
                         topping_str += f" | Extra: {', '.join(extra_names)}"
@@ -585,7 +575,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v12"
+            key="admin_filter_date_v13"
         )
         
         st.markdown("---")
@@ -797,21 +787,37 @@ def render_panel_kontrol():
             st.rerun()
     with col_btn2:
         if st.button("❌ Kosongkan / Matikan Semua"):
-            for item in MENU_JAJAN_JAJANAN if 'MENU_JAJAN_JAJANAN' in locals() else MENU_JAJANAN:
+            for item in MENU_JAJANAN:
                 st.session_state[f"toggle_menu_{item['id']}"] = False
             st.rerun()
 
     st.markdown("---")
     
+    # --- PENGATURAN MENU MAKANAN ---
     st.markdown("#### 🍔 Menu Makanan")
     for item in MENU_MAKANAN:
         key_name = f"toggle_menu_{item['id']}"
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
 
+    st.markdown("---")
+
+    # --- PENGATURAN MENU MINUMAN DENGAN MASTER TOGGLE ---
     st.markdown("#### 🥤 Menu Minuman (Maycha Thaitea & Boba)")
-    for item in MENU_MINUMAN:
-        key_name = f"toggle_menu_{item['id']}"
-        st.checkbox(f"**{item['nama']}** (S: {item['small']}, M: {item['medium']}, L: {item['large']})", key=key_name)
+    
+    # Cek apakah semua minuman sedang aktif
+    all_minuman_active = all(st.session_state.get(f"toggle_menu_{item['id']}", False) for item in MENU_MINUMAN)
+    
+    Master_minuman_toggle = st.checkbox("🌟 **[MASTER] Aktifkan / Nonaktifkan Semua Menu Minuman**", value=all_minuman_active, key="master_minuman_checkbox")
+    
+    if Master_minuman_toggle != all_minuman_active:
+        for item in MENU_MINUMAN:
+            st.session_state[f"toggle_menu_{item['id']}"] = Master_minuman_toggle
+        st.rerun()
+
+    with st.expander("📂 Lihat / Atur Detail Menu Minuman Satuan (Opsional)"):
+        for item in MENU_MINUMAN:
+            key_name = f"toggle_menu_{item['id']}"
+            st.checkbox(f"**{item['nama']}** (S: {item['small']}, M: {item['medium']}, L: {item['large']})", key=key_name)
             
     st.markdown("---")
     if st.button("💾 Simpan Pengaturan Jadwal & Menu"):
