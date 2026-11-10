@@ -44,7 +44,7 @@ except Exception as e:
 def get_cached_orders():
     return sheet_orders.get_all_records()
 
-# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z) Beserta Menu Baru
+# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z) Termasuk Makaroni
 MENU_JAJANAN = [
     {"id": 8, "nama": "Basreng", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "baso goyeng."},
     {
@@ -79,6 +79,16 @@ MENU_JAJANAN = [
     {"id": 1, "nama": "Jambu Krisjon", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "Jambu kristal panghegar yang manis ituh."},
     {"id": 13, "nama": "Kentang Goreng", "tipe_menu": "normal", "pilihan_harga": [5000], "deskripsi": "French fries crispy."},
     {"id": 6, "nama": "Kwetiaw", "tipe_menu": "normal", "pilihan_harga": [10000], "deskripsi": "kwetiau harga pasar rasa restoran."},
+    {
+        "id": 22, "nama": "Makaroni", "tipe_menu": "varian",
+        "varian": [
+            {"nama": "Makaroni Basah (Porsi 5rb)", "harga": 5000},
+            {"nama": "Makaroni Basah (Porsi 10rb)", "harga": 10000},
+            {"nama": "Makaroni Kering / Ngehe (Porsi 5rb)", "harga": 5000},
+            {"nama": "Makaroni Kering / Ngehe (Porsi 10rb)", "harga": 10000}
+        ],
+        "deskripsi": "Makaroni basah atau kering gurih mantap."
+    },
     {
         "id": 9, "nama": "Martabak Mini", "tipe_menu": "varian", 
         "varian": [{"nama": "Pisang", "harga": 2500}, {"nama": "Coklat", "harga": 2500}, {"nama": "Keju", "harga": 3000}, {"nama": "Pisang-Coklat", "harga": 3000}, {"nama": "Pisang-Keju", "harga": 3000}],
@@ -448,7 +458,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v10"
+            key="admin_filter_date_v11"
         )
         
         st.markdown("---")
