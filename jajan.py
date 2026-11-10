@@ -44,8 +44,8 @@ except Exception as e:
 def get_cached_orders():
     return sheet_orders.get_all_records()
 
-# Daftar Menu Jajanan Diurutkan Sesuai Abjad (A - Z) Termasuk Makaroni
-MENU_JAJANAN = [
+# --- DAFTAR MENU (DIBAGI MENJADI MAKANAN & MINUMAN) ---
+MENU_MAKANAN = [
     {"id": 8, "nama": "Basreng", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "baso goyeng."},
     {
         "id": 19, "nama": "Batagor", "tipe_menu": "varian",
@@ -119,6 +119,46 @@ MENU_JAJANAN = [
     },
     {"id": 5, "nama": "Usus crispy", "tipe_menu": "normal", "pilihan_harga": [5000, 10000], "deskripsi": "usus kabeuki gerri trusted enak banget."}
 ]
+
+# Daftar Menu Minuman Maycha Thaitea & Boba Drink (Harga Small, Medium, Large)
+MENU_MINUMAN = [
+    {"id": 101, "nama": "Thaitea", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 102, "nama": "Greentea", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 103, "nama": "Coklat", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 104, "nama": "Taro", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 105, "nama": "Mangga", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 106, "nama": "Strawberry", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 107, "nama": "Vanilla Ori", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 108, "nama": "Vanilla Latte", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 109, "nama": "Cheese Cake", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 110, "nama": "Choco Oreo", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 111, "nama": "Buble Gum", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 112, "nama": "Red Velvet", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 113, "nama": "Cappucino Cincau", "small": 6000, "medium": 8000, "large": 10000},
+    {"id": 114, "nama": "Milo", "small": None, "medium": 8000, "large": 10000},
+    {"id": 115, "nama": "Milky Orange", "small": None, "medium": 8000, "large": 10000},
+    {"id": 116, "nama": "Vanilla Oreo", "small": 8000, "medium": 10000, "large": 12000},
+    {"id": 117, "nama": "Es Teh / Teh Ijo", "small": None, "medium": 5000, "large": 8000},
+    {"id": 118, "nama": "Mangga Yakult", "small": None, "medium": 10000, "large": 13000},
+    {"id": 119, "nama": "Orange Yakult", "small": None, "medium": 10000, "large": 13000},
+    {"id": 120, "nama": "Leci Yakult", "small": None, "medium": 10000, "large": 13000},
+    {"id": 121, "nama": "Strawberry Yakult", "small": None, "medium": 10000, "large": 13000},
+    {"id": 122, "nama": "Lemon Yakult", "small": None, "medium": None, "large": 13000},
+    {"id": 123, "nama": "Thai Lemon Tea", "small": None, "medium": None, "large": 10000},
+    {"id": 124, "nama": "Green Lemon Tea", "small": None, "medium": None, "large": 10000},
+    {"id": 125, "nama": "Orange Tea", "small": None, "medium": None, "large": 10000},
+    {"id": 126, "nama": "Vanilla Lemon", "small": None, "medium": None, "large": 13000},
+    {"id": 127, "nama": "Coffe Susu", "small": None, "medium": None, "large": 10000},
+    {"id": 128, "nama": "Coffe Milo", "small": None, "medium": None, "large": 13000},
+    {"id": 129, "nama": "Thai Mix Milo", "small": None, "medium": None, "large": 13000},
+    {"id": 130, "nama": "Green Mix Milo", "small": None, "medium": None, "large": 13000},
+    {"id": 131, "nama": "Boba Brown Sugar", "small": None, "medium": 10000, "large": None},
+    {"id": 132, "nama": "Josu", "small": 6000, "medium": None, "large": 10000},
+    {"id": 133, "nama": "Kubimsu", "small": 6000, "medium": None, "large": 10000}
+]
+
+# Gabungan seluruh ID menu untuk pengaturan admin panel
+MENU_JAJANAN = MENU_MAKANAN + MENU_MINUMAN
 
 # --- FUNGSI LOAD & SAVE CONFIG LOKAL (JSON) ---
 def load_system_config():
@@ -261,65 +301,152 @@ def render_form_pesanan():
     
     if (tanggal_jajan != st.session_state.active_menu_date and not is_admin) or is_expired:
         st.warning(f"⚠️ Form pemesanan ditutup atau tanggal berbeda. Jadwal aktif saat ini adalah tanggal **{st.session_state.active_menu_date}** (Batas pukul {formatted_time_str} WIB).")
-        available_menu = []
+        available_makanan = []
+        available_minuman = []
     else:
-        available_menu = [item for item in MENU_JAJANAN if item["id"] in st.session_state.active_menu_ids]
+        available_makanan = [item for item in MENU_MAKANAN if item["id"] in st.session_state.active_menu_ids]
+        available_minuman = [item for item in MENU_MINUMAN if item["id"] in st.session_state.active_menu_ids]
 
-    st.markdown(f"### 2. 🛒 Pilih Menu untuk Tanggal: {tanggal_jajan}")
+    st.markdown(f"### 2. 🛒 Pilih Kategori & Menu untuk Tanggal: {tanggal_jajan}")
 
     try:
         all_data_raw = get_cached_orders()
     except:
         all_data_raw = []
 
-    if not available_menu:
+    if not available_makanan and not available_minuman:
         st.warning("⚠️ Belum ada menu jajanan yang diaktifkan atau waktu pemesanan sudah berakhir.")
     else:
-        menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_menu]
-        selected_menu_str = st.selectbox("Pilih Menu Jajanan:", menu_options)
+        # Pilihan Kategori Menu
+        kategori_pilihan = st.radio("Pilih Kategori:", ["🍔 Makanan", "🥤 Minuman (Maycha Thaitea & Boba)"], horizontal=True)
 
-        selected_idx = menu_options.index(selected_menu_str)
-        item_terpilih = available_menu[selected_idx]
-
-        if item_terpilih["tipe_menu"] == "varian":
-            pilihan_varian = st.selectbox(
-                "Pilih Varian Rasa / Jenis:", 
-                item_terpilih["varian"], 
-                format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
-            )
-            nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
-            harga_final = pilihan_varian["harga"]
-        else:
-            if len(item_terpilih["pilihan_harga"]) > 1:
-                pilihan_harga_pilih = st.radio(
-                    "Pilih Varian Harga:", 
-                    item_terpilih["pilihan_harga"], 
-                    format_func=lambda x: f"Rp {x:,}"
-                )
+        if kategori_pilihan == "🍔 Makanan":
+            if not available_makanan:
+                st.info("Belum ada menu makanan yang aktif.")
             else:
-                pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
-                st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
-            
-            nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
-            harga_final = pilihan_harga_pilih
+                menu_options = [f"{item['nama']} - {item['deskripsi']}" for item in available_makanan]
+                selected_menu_str = st.selectbox("Pilih Menu Makanan:", menu_options, key="sel_makanan")
 
-        col_qty, col_level = st.columns(2)
-        with col_qty:
-            jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1)
-        with col_level:
-            level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"])
+                selected_idx = menu_options.index(selected_menu_str)
+                item_terpilih = available_makanan[selected_idx]
 
-        catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng, kuah dipisah, dll.")
+                if item_terpilih["tipe_menu"] == "varian":
+                    pilihan_varian = st.selectbox(
+                        "Pilih Varian Rasa / Jenis:", 
+                        item_terpilih["varian"], 
+                        format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})"
+                    )
+                    nama_pesanan_final = f"{item_terpilih['nama']} - {pilihan_varian['nama']}"
+                    harga_final = pilihan_varian["harga"]
+                else:
+                    if len(item_terpilih["pilihan_harga"]) > 1:
+                        pilihan_harga_pilih = st.radio(
+                            "Pilih Varian Harga:", 
+                            item_terpilih["pilihan_harga"], 
+                            format_func=lambda x: f"Rp {x:,}"
+                        )
+                    else:
+                        pilihan_harga_pilih = item_terpilih["pilihan_harga"][0]
+                        st.write(f"**Harga:** Rp {pilihan_harga_pilih:,}")
+                    
+                    nama_pesanan_final = f"{item_terpilih['nama']} (Rp {pilihan_harga_pilih:,})"
+                    harga_final = pilihan_harga_pilih
 
-        if st.button("➕ Tambah ke Daftar Pesanan Saya"):
-            st.session_state.current_cart.append({
-                "nama_menu": nama_pesanan_final,
-                "harga": harga_final,
-                "qty": jumlah_pesan,
-                "level": level_pedas,
-                "catatan": catatan_item if catatan_item else "-"
-            })
-            st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
+                col_qty, col_level = st.columns(2)
+                with col_qty:
+                    jumlah_pesan = st.number_input("Jumlah Porsi:", min_value=1, max_value=20, value=1, key="qty_mkn")
+                with col_level:
+                    level_pedas = st.selectbox("Level Pedas (Opsional):", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"], key="lvl_mkn")
+
+                catatan_item = st.text_input("Catatan Khusus (Opsional):", placeholder="Contoh: Jangan pakai bawang goreng", key="cat_mkn")
+
+                if st.button("➕ Tambah ke Daftar Pesanan Saya", key="btn_add_mkn"):
+                    st.session_state.current_cart.append({
+                        "nama_menu": nama_pesanan_final,
+                        "harga": harga_final,
+                        "qty": jumlah_pesan,
+                        "level": level_pedas,
+                        "catatan": catatan_item if catatan_item else "-"
+                    })
+                    st.toast(f"Berhasil menambahkan {nama_pesanan_final}!")
+
+        else: # KATEGORI MINUMAN
+            if not available_minuman:
+                st.info("Belum ada menu minuman yang aktif.")
+            else:
+                minuman_options = [item['nama'] for item in available_minuman]
+                selected_minuman_str = st.selectbox("Pilih Menu Minuman:", minuman_options, key="sel_minum")
+
+                drink_obj = next((item for item in available_minuman if item['nama'] == selected_minuman_str), None)
+
+                if drink_obj:
+                    # Filter ukuran yang tersedia (tidak None)
+                    available_sizes = []
+                    if drink_obj["small"] is not None:
+                        available_sizes.append("Small")
+                    if drink_obj["medium"] is not None:
+                        available_sizes.append("Medium")
+                    if drink_obj["large"] is not None:
+                        available_sizes.append("Large")
+
+                    selected_size = st.radio("Pilih Ukuran Cup:", available_sizes, horizontal=True, key="radio_size")
+
+                    # Ambil harga berdasarkan ukuran
+                    if selected_size == "Small":
+                        base_price = drink_obj["small"]
+                    elif selected_size == "Medium":
+                        base_price = drink_obj["medium"]
+                    else:
+                        base_price = drink_obj["large"]
+
+                    st.write(f"**Harga Ukuran {selected_size}:** Rp {base_price:,}")
+
+                    # Free Topping (Pilih salah satu)
+                    free_topping = st.selectbox("Pilih Free Topping (Gratis):", ["Boba / Buble", "Jelly", "Nutrijel"], key="free_top")
+
+                    # Extra Topping (Opsional, bisa tambah lebih dari satu atau berbayar)
+                    extra_options = st.multiselect(
+                        "Pilih Extra Topping (Opsional - Berbayar):", 
+                        ["Boba Meletus (+Rp 3.000)", "Cream Cheese (+Rp 3.000)", "Oreo (+Rp 2.000)", "Cincau (+Rp 2.000)"],
+                        key="extra_top"
+                    )
+
+                    # Hitung tambahan harga extra topping
+                    extra_price_total = 0
+                    extra_names = []
+                    for ext in extra_options:
+                        if "Boba Meletus" in ext or "Cream Cheese" in ext:
+                            extra_price_total += 3000
+                        else:
+                            extra_price_total += 2000
+                        extra_names.append(ext.split(" (+")[0])
+
+                    final_drink_price = base_price + extra_price_total
+
+                    # Susun nama minuman final
+                    topping_str = f"Free: {free_topping}"
+                    if extra_names:
+                        topping_str += f" | Extra: {', '.join(extra_names)}"
+
+                    nama_pesanan_minuman_final = f"{drink_obj['nama']} ({selected_size}) - [{topping_str}]"
+
+                    col_q_minum, col_lvl_minum = st.columns(2)
+                    with col_q_minum:
+                        jumlah_minum = st.number_input("Jumlah Gelas:", min_value=1, max_value=20, value=1, key="qty_minum")
+                    with col_lvl_minum:
+                        gula_es = st.selectbox("Catatan Es / Manis:", ["Normal Ice / Normal Sweet", "Less Ice", "No Ice", "Less Sugar"], key="gula_es")
+
+                    catatan_minum = st.text_input("Catatan Khusus Minuman (Opsional):", placeholder="Contoh: Plastik dipisah", key="cat_minum")
+
+                    if st.button("➕ Tambah Minuman ke Daftar Pesanan Saya", key="btn_add_minum"):
+                        st.session_state.current_cart.append({
+                            "nama_menu": nama_pesanan_minuman_final,
+                            "harga": final_drink_price,
+                            "qty": jumlah_minum,
+                            "level": gula_es,
+                            "catatan": catatan_minum if catatan_minum else "-"
+                        })
+                        st.toast(f"Berhasil menambahkan {drink_obj['nama']}!")
 
     st.markdown("---")
     st.markdown("### 🧾 Preview Pesanan Kamu")
@@ -332,7 +459,7 @@ def render_form_pesanan():
             sub = cart_item["harga"] * cart_item["qty"]
             subtotal_menu += sub
             c1, c2, c3 = st.columns([3, 2, 1])
-            c1.write(f"**{cart_item['nama_menu']}** (x{cart_item['qty']}) - Level: {cart_item['level']}")
+            c1.write(f"**{cart_item['nama_menu']}** (x{cart_item['qty']}) - Note: {cart_item['level']}")
             c2.write(f"Catatan: {cart_item['catatan']}")
             c3.write(f"Rp {sub:,}")
             if st.button("Hapus Item", key=f"del_cart_{idx}"):
@@ -458,7 +585,7 @@ def render_master_rekap():
         selected_filter = st.selectbox(
             "Pilih Tanggal Rekap:",
             options=filter_options,
-            key="admin_filter_date_v11"
+            key="admin_filter_date_v12"
         )
         
         st.markdown("---")
@@ -561,7 +688,7 @@ def render_master_rekap():
                             if not active_menu_list:
                                 active_menu_list = MENU_JAJANAN
                             
-                            add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']} - {item['deskripsi']}" for item in active_menu_list]
+                            add_menu_options = ["- Tidak Menambah Menu Baru -"] + [f"{item['nama']}" for item in active_menu_list]
                             chosen_add_str = st.selectbox("Pilih Menu Tambahan (Sesuai Menu Aktif):", add_menu_options, key=f"sub_add_menu_{m_item['id']}")
                             
                             sub_added_menu_name = None
@@ -571,38 +698,13 @@ def render_master_rekap():
                             sub_added_catatan = "-"
 
                             if chosen_add_str != "- Tidak Menambah Menu Baru -":
-                                chosen_idx = add_menu_options.index(chosen_add_str) - 1
-                                chosen_item_obj = active_menu_list[chosen_idx]
-                                
-                                if chosen_item_obj["tipe_menu"] == "varian":
-                                    chosen_var_obj = st.selectbox(
-                                        "Pilih Varian Tambahan:", 
-                                        chosen_item_obj["varian"], 
-                                        format_func=lambda x: f"{x['nama']} (Rp {x['harga']:,})",
-                                        key=f"sub_add_var_{m_item['id']}"
-                                    )
-                                    sub_added_menu_name = f"{chosen_item_obj['nama']} - {chosen_var_obj['nama']}"
-                                    sub_added_price = chosen_var_obj["harga"]
-                                else:
-                                    if len(chosen_item_obj["pilihan_harga"]) > 1:
-                                        sub_added_price = st.radio(
-                                            "Pilih Harga Tambahan:", 
-                                            chosen_item_obj["pilihan_harga"], 
-                                            format_func=lambda x: f"Rp {x:,}",
-                                            key=f"sub_add_prc_{m_item['id']}"
-                                        )
-                                    else:
-                                        sub_added_price = chosen_item_obj["pilihan_harga"][0]
-                                        st.write(f"**Harga:** Rp {sub_added_price:,}")
-                                    
-                                    sub_added_menu_name = f"{chosen_item_obj['nama']} (Rp {sub_added_price:,})"
-
+                                sub_added_menu_name = chosen_add_str
+                                sub_added_price = st.number_input("Harga Tambahan (Rp):", value=5000, step=500, key=f"sub_add_prc_{m_item['id']}")
                                 c_sa1, c_sa2 = st.columns(2)
                                 with c_sa1:
                                     sub_added_qty = st.number_input("Qty Tambahan:", min_value=1, max_value=20, value=1, key=f"sub_add_q_{m_item['id']}")
                                 with c_sa2:
-                                    sub_added_level = st.selectbox("Level Tambahan:", ["-", "Tidak Pedas", "Pedes Dikit", "Pedas Sedang", "Pedasssss"], key=f"sub_add_l_{m_item['id']}")
-                                
+                                    sub_added_level = st.text_input("Level/Catatan Tambahan:", value="-", key=f"sub_add_l_{m_item['id']}")
                                 sub_added_catatan = st.text_input("Catatan Tambahan:", placeholder="Contoh: Kuah dipisah", key=f"sub_add_c_{m_item['id']}")
 
                             st.markdown("---")
@@ -695,15 +797,21 @@ def render_panel_kontrol():
             st.rerun()
     with col_btn2:
         if st.button("❌ Kosongkan / Matikan Semua"):
-            for item in MENU_JAJANAN:
+            for item in MENU_JAJAN_JAJANAN if 'MENU_JAJAN_JAJANAN' in locals() else MENU_JAJANAN:
                 st.session_state[f"toggle_menu_{item['id']}"] = False
             st.rerun()
 
     st.markdown("---")
     
-    for item in MENU_JAJANAN:
+    st.markdown("#### 🍔 Menu Makanan")
+    for item in MENU_MAKANAN:
         key_name = f"toggle_menu_{item['id']}"
         st.checkbox(f"**{item['nama']}** — *{item['deskripsi']}*", key=key_name)
+
+    st.markdown("#### 🥤 Menu Minuman (Maycha Thaitea & Boba)")
+    for item in MENU_MINUMAN:
+        key_name = f"toggle_menu_{item['id']}"
+        st.checkbox(f"**{item['nama']}** (S: {item['small']}, M: {item['medium']}, L: {item['large']})", key=key_name)
             
     st.markdown("---")
     if st.button("💾 Simpan Pengaturan Jadwal & Menu"):
